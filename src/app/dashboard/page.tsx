@@ -185,7 +185,11 @@ export default function Dashboard() {
               <button 
                 className="btn-primary" 
                 style={{ padding: '24px 64px', fontSize: '1.25rem' }}
-                onClick={() => window.location.href = '/generate'}
+                onClick={() => {
+                  const selected = invoices.filter(i => i.selected);
+                  localStorage.setItem('selected_invoices', JSON.stringify(selected));
+                  window.location.href = '/generate';
+                }}
               >
                 Assemble Final Report <ArrowRight size={28} />
               </button>

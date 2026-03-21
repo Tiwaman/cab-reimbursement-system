@@ -2,26 +2,48 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, CheckCircle2, FileText, Download, AlertCircle, Zap, ShieldQuestion } from 'lucide-react';
+import { 
+  Loader2, CheckCircle2, FileText, Download, AlertCircle, 
+  Zap, ArrowLeft, Layers, FileSpreadsheet, Sparkles 
+} from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
 
+interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  pickup: string;
+  drop: string;
+  pdfLink: string;
+}
+
 export default function GeneratePage() {
   const [stages, setStages] = useState<{ id: string, label: string, status: 'pending' | 'running' | 'done' | 'error', details?: string }[]>([
-    { id: 'auth', label: 'Uber Authentication', status: 'pending' },
-    { id: 'harvest', label: 'Harvesting PDFs', status: 'pending' },
-    { id: 'merge', label: 'Merging Documents', status: 'pending' },
-    { id: 'excel', label: 'Generating Summary', status: 'pending' },
+    { id: 'data', label: 'Synthesizing Selection', status: 'pending' },
+    { id: 'harvest', label: 'Harvesting PDF Receipts', status: 'pending' },
+    { id: 'merge', label: 'Merging Multi-Page Document', status: 'pending' },
+    { id: 'excel', label: 'Generating Financial Summary', status: 'pending' },
   ]);
 
   const [logs, setLogs] = useState<string[]>([]);
-  const [otpRequired, setOtpRequired] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mergedPdfBlob, setMergedPdfBlob] = useState<Blob | null>(null);
+
+  useEffect(() => {
+    const data = localStorage.getItem('selected_invoices');
+    if (data) {
+      const parsed = JSON.parse(data);
+      setInvoices(parsed);
+      setLogs([`Ready to process ${parsed.length} trips.`]);
+    } else {
+      setLogs(['Error: No trips selected. Please return to dashboard.']);
+    }
+  }, []);
 
   const addLog = (msg: string) => {
-    setLogs(prev => [...prev, msg].slice(-8));
-    if (msg.includes('OTP_REQUIRED')) setOtpRequired(true);
+    setLogs(prev => [...prev.slice(-10), msg]);
   };
 
   const updateStage = (id: string, status: 'running' | 'done' | 'error', details?: string) => {
@@ -29,212 +51,235 @@ export default function GeneratePage() {
   };
 
   const startGeneration = async () => {
+    if (invoices.length === 0) return;
     setIsGenerating(true);
-    updateStage('auth', 'running');
-    addLog('Starting automation engine...');
-    
-    // Automation sequence
-    setTimeout(() => addLog('Navigating to Uber...'), 1000);
-    setTimeout(() => {
-      addLog('Login challenge detected. UBER_EMAIL: matched.');
-      updateStage('auth', 'done');
+    setLogs([]);
+
+    try {
+      // Stage 1: Data Synthesis
+      updateStage('data', 'running');
+      addLog(`Preparing metadata for ${invoices.length} trips...`);
+      await new Promise(r => setTimeout(r, 800));
+      updateStage('data', 'done');
+
+      // Stage 2: Harvesting PDFs
       updateStage('harvest', 'running');
-      addLog('Fetching trip receipts...');
-    }, 2000);
+      const pdfBuffers: Uint8Array[] = [];
+      for (let i = 0; i < invoices.length; i++) {
+        const inv = invoices[i];
+        addLog(`Harvesting receipt ${i + 1}/${invoices.length}: ${inv.date}...`);
+        
+        if (!inv.pdfLink) {
+          addLog(`Warning: No PDF link for trip ${inv.date}. Skipping.`);
+          continue;
+        }
 
-    setTimeout(() => {
-      addLog('Receipt PDF link located: Trip ID #2345...');
-      addLog('Downloading PDF...');
-    }, 4000);
-
-    setTimeout(() => {
+        try {
+          const res = await fetch(`/api/pdf-proxy?url=${encodeURIComponent(inv.pdfLink)}`);
+          if (!res.ok) throw new Error('Fetch failed');
+          const buffer = await res.arrayBuffer();
+          pdfBuffers.push(new Uint8Array(buffer));
+        } catch (err) {
+          addLog(`Error fetching PDF: ${inv.date}. Link might be expired.`);
+        }
+      }
       updateStage('harvest', 'done');
+
+      // Stage 3: Merging
       updateStage('merge', 'running');
-      addLog('Merging PDFs using pdf-lib...');
-    }, 6000);
+      addLog(`Merging ${pdfBuffers.length} documents into unified PDF...`);
+      
+      if (pdfBuffers.length === 0) {
+        addLog('No valid PDFs harvested. Generation aborted.');
+        updateStage('merge', 'error');
+        return;
+      }
 
-    setTimeout(() => {
+      const mergedPdf = await PDFDocument.create();
+      for (const buffer of pdfBuffers) {
+        try {
+          const pdf = await PDFDocument.load(buffer);
+          const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          copiedPages.forEach((page) => mergedPdf.addPage(page));
+        } catch (e) {
+          addLog('Error processing page. Skipping corrupted slice.');
+        }
+      }
+      const pdfBytes = await mergedPdf.save();
+      setMergedPdfBlob(new Blob([pdfBytes], { type: 'application/pdf' }));
       updateStage('merge', 'done');
+
+      // Stage 4: Excel Summary
       updateStage('excel', 'running');
-      addLog('Generating Receipt_Summary.xlsx...');
-    }, 8000);
-
-    setTimeout(() => {
+      addLog('Generating Financial Summary (XLSX)...');
+      await new Promise(r => setTimeout(r, 600));
       updateStage('excel', 'done');
+      
       addLog('System: All tasks completed successfully.');
-    }, 10000);
+    } catch (err: any) {
+      addLog(`Critical Failure: ${err.message}`);
+      updateStage('data', 'error');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const submitOtp = async () => {
-    setOtpRequired(false);
-    addLog(`OTP ${otp} received. Resuming session...`);
+  const downloadPDF = () => {
+    if (!mergedPdfBlob) return;
+    const url = URL.createObjectURL(mergedPdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Uber_Reimbursement_Batch_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const generateExcel = (data: any[]) => {
-    const worksheet = XLSX.utils.json_to_sheet(data.map(inv => ({
-      Date: inv.date,
-      Amount: `\u20B9${inv.amount.toFixed(2)}`,
-      Pickup: inv.pickup,
-      Drop: inv.drop
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(invoices.map(inv => ({
+      'Trip Date': inv.date,
+      'Amount (INR)': inv.amount,
+      'Pickup Location': inv.pickup,
+      'Drop Location': inv.drop,
+      'Source': 'Uber Verified'
     })));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Reimbursement");
-    XLSX.writeFile(workbook, "Cab_Reimbursement_Summary.xlsx");
-  };
-
-  const mergePDFs = async (pdfBuffers: Uint8Array[]) => {
-    const mergedPdf = await PDFDocument.create();
-    for (const pdfBuffer of pdfBuffers) {
-      const pdf = await PDFDocument.load(pdfBuffer);
-      const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      copiedPages.forEach((page) => mergedPdf.addPage(page));
-    }
-    const pdfBytes = await mergedPdf.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'Uber_Merged_Receipts.pdf';
-    link.click();
-  };
-
-  const handleDownload = async () => {
-    const mockData = [
-      { date: '16/03/2026', amount: 169.98, pickup: 'Aurum Corporate Park', drop: 'Airoli' }
-    ];
-    generateExcel(mockData);
-    addLog('Excel report downloaded.');
+    XLSX.writeFile(workbook, `Trip_Summary_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`);
   };
 
   return (
-    <div className="min-h-screen p-8 max-w-3xl mx-auto pt-32">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
-      >
-        <h1 className="text-4xl font-bold mb-4">Generating Your Report</h1>
-        <p className="text-slate-400">Our automation engine is harvesting your invoices from Uber.</p>
-      </motion.div>
+    <div className="premium-gradient">
+      <div className="hero-glow" />
+      <div className="container" style={{ paddingTop: '80px', paddingBottom: '120px', maxWidth: '800px' }}>
+        
+        {/* Elite Nav */}
+        <div className="flex justify-between items-center" style={{ marginBottom: '60px' }}>
+          <button onClick={() => window.location.href = '/dashboard'} className="btn-secondary" style={{ padding: '10px 24px', fontSize: '0.9rem', borderRadius: '14px' }}>
+            <ArrowLeft size={18} /> Back to Vault
+          </button>
+          <div style={{ background: 'hsla(var(--primary-hsl), 0.1)', color: 'var(--primary)', border: '1px solid hsla(var(--primary-hsl), 0.2)', padding: '6px 16px', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Synthesis Module
+          </div>
+        </div>
 
-      <div className="space-y-6">
-        {/* Stages View */}
-        <div className="glass premium-card p-8">
-          <div className="space-y-6">
+        {/* Title Deck */}
+        <div className="text-center" style={{ marginBottom: '64px' }}>
+          <h1 className="text-gradient" style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', marginBottom: '16px', lineHeight: 1.1 }}>
+            Assembling <br/>Your Report
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '1.2rem', fontWeight: 500 }}>
+            Processing <span style={{ color: '#fff' }}>{invoices.length}</span> selected trip receipts.
+          </p>
+        </div>
+
+        {/* Synthesis Engine Panel */}
+        <div className="panel-premium" style={{ padding: '48px', marginBottom: '40px' }}>
+          <div className="flex flex-column gap-8">
             {stages.map((stage, idx) => (
-              <div key={stage.id} className="flex items-center gap-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${
-                  stage.status === 'done' ? 'bg-primary/20 border-primary text-primary' : 
-                  stage.status === 'running' ? 'border-primary animate-pulse text-primary' : 
-                  'border-white/10 text-slate-500'
+              <div key={stage.id} className="flex items-center gap-6">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                  stage.status === 'done' ? 'bg-primary text-white scale-110' : 
+                  stage.status === 'running' ? 'bg-surface border-2 border-primary animate-pulse text-primary' : 
+                  'bg-surface border border-white/10 text-slate-600'
                 }`}>
-                  {stage.status === 'done' ? <CheckCircle2 className="w-5 h-5" /> : <span>{idx + 1}</span>}
+                  {stage.status === 'done' ? <CheckCircle2 size={24} /> : <span style={{ fontWeight: 800 }}>{idx + 1}</span>}
                 </div>
                 <div className="flex-1">
-                  <div className={`font-semibold ${stage.status === 'pending' ? 'text-slate-500' : 'text-slate-200'}`}>
+                  <div className={`font-bold text-lg ${stage.status === 'pending' ? 'text-slate-600' : 'text-slate-100'}`}>
                     {stage.label}
                   </div>
                   {stage.status === 'running' && (
-                    <div className="text-xs text-primary animate-pulse mt-1">Processing...</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Loader2 className="spin" size={14} color="var(--primary)" />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Processing Module...</span>
+                    </div>
                   )}
                 </div>
               </div>
             ))}
           </div>
 
-          {!isGenerating && (
+          {!isGenerating && !stages.every(s => s.status === 'done') && (
             <button 
               onClick={startGeneration}
-              className="glow-button w-full mt-10 py-4 text-lg"
+              className="btn-primary" 
+              style={{ width: '100%', marginTop: '48px', padding: '24px', fontSize: '1.25rem' }}
             >
-              Start Harvest & Generation <Zap className="w-5 h-5" />
+              Start Synthesis Engine <Zap size={24} />
             </button>
           )}
         </div>
 
-        {/* Thought Process Log */}
-        <div className="glass p-6 font-mono text-sm border-white/5 bg-black/40 h-48 overflow-hidden rounded-2xl relative">
-          <div className="absolute top-4 right-4 text-[10px] text-slate-600 uppercase tracking-widest font-bold">Automation Engine V1.0</div>
-          <div className="flex flex-col gap-2">
+        {/* Neural Log View */}
+        <div className="panel-premium" style={{ background: 'rgba(0,0,0,0.3)', padding: '32px', borderStyle: 'dashed', marginBottom: '48px' }}>
+          <div className="flex justify-between items-center" style={{ marginBottom: '20px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: '#64748b' }}>Log Feed</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--primary)' }}>V1.05-PRODUCTION</span>
+          </div>
+          <div className="flex flex-column gap-3" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+            {logs.length === 0 && <div style={{ color: '#334155' }}>Awaiting command...</div>}
             {logs.map((log, i) => (
-              <div key={i} className={`${log.startsWith('Error') ? 'text-red-400' : 'text-slate-400'}`}>
-                <span className="text-primary mr-2">»</span> {log}
+              <div key={i} className="flex gap-3">
+                <span style={{ color: 'var(--primary)', fontWeight: 900 }}>»</span>
+                <span style={{ color: '#94a3b8' }}>{log}</span>
               </div>
             ))}
-            {isGenerating && stages.some(s => s.status === 'running') && (
-              <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-            )}
+            {isGenerating && <span className="w-2 h-4 bg-primary animate-pulse" />}
           </div>
         </div>
 
-        {/* OTP Bridge Modal */}
+        {/* Results Suite */}
         <AnimatePresence>
-          {otpRequired && (
+          {stages.every(s => s.status === 'done') && (
             <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-column gap-6"
             >
-              <motion.div 
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                className="glass premium-card p-10 max-w-md w-full text-center"
-              >
-                <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <ShieldQuestion className="w-8 h-8 text-accent" />
+              <div className="text-center" style={{ marginBottom: '12px' }}>
+                <div className="flex justify-center gap-2 items-center" style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                  <Sparkles size={18} /> DOCUMENTS READY FOR EXPORT
                 </div>
-                <h2 className="text-2xl font-bold mb-2">OTP Required</h2>
-                <p className="text-slate-400 mb-8">Uber sent a security code to your phone. Please enter it below to continue the harvest.</p>
-                <input 
-                  type="text" 
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="000000"
-                  className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-center text-3xl tracking-[1em] mb-6 focus:border-primary outline-none transition-colors"
-                />
-                <button 
-                  onClick={submitOtp}
-                  className="glow-button w-full py-4"
-                >
-                  Verify & Resume
+              </div>
+
+              <div className="flex gap-6 flex-wrap-mobile">
+                <button onClick={downloadPDF} className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--primary-hsl), 0.3)', cursor: 'pointer', transition: '0.3s' }}>
+                  <div style={{ width: '80px', height: '80px', background: 'hsla(var(--primary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Layers size={40} color="var(--primary)" />
+                  </div>
+                  <div className="text-center">
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>Merged Receipt PDF</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Full Trip Evidence</div>
+                  </div>
+                  <div className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
+                    <Download size={14} /> Download PDF
+                  </div>
                 </button>
-              </motion.div>
+
+                <button onClick={downloadExcel} className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--secondary-hsl), 0.3)', cursor: 'pointer', transition: '0.3s' }}>
+                  <div style={{ width: '80px', height: '80px', background: 'hsla(var(--secondary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileSpreadsheet size={40} color="var(--secondary)" />
+                  </div>
+                  <div className="text-center">
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>Expense Summary</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Excel Sheet for HR</div>
+                  </div>
+                  <div className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
+                    <Download size={14} /> Download Excel
+                  </div>
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Final Downloads */}
-        {stages.every(s => s.status === 'done') && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col sm:flex-row gap-4"
-          >
-            <button 
-              onClick={handleDownload}
-              className="flex-1 glass premium-card p-6 flex flex-col items-center gap-3 hover:border-primary/40 transition-all text-left"
-            >
-              <FileText className="w-10 h-10 text-primary" />
-              <div className="text-center">
-                <div className="font-bold">Uber_Reimbursement.pdf</div>
-                <div className="text-xs text-slate-500">Merged trip receipts</div>
-              </div>
-              <Download className="w-5 h-5 mt-2 text-slate-500" />
-            </button>
-            <button 
-              onClick={handleDownload}
-              className="flex-1 glass premium-card p-6 flex flex-col items-center gap-3 hover:border-secondary/40 transition-all text-left"
-            >
-              <Download className="w-10 h-10 text-secondary" />
-              <div className="text-center">
-                <div className="font-bold">Trip_Summary.xlsx</div>
-                <div className="text-xs text-slate-500">Data sheet for accounting</div>
-              </div>
-              <Download className="w-5 h-5 mt-2 text-slate-500" />
-            </button>
-          </motion.div>
-        )}
       </div>
+
+      <style jsx>{`
+        .hover-scale { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .hover-scale:hover { transform: translateY(-10px) scale(1.02); background: hsla(255, 100%, 100%, 0.05); }
+      `}</style>
     </div>
   );
 }
