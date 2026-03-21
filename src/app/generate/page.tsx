@@ -87,24 +87,28 @@ export default function GeneratePage() {
 
       // Stage 3: Merging
       updateStage('merge', 'running');
-      addLog(`Merging ${pdfBuffers.length} documents into unified PDF...`);
+      addLog(`Synthesizing ${pdfBuffers.length} source documents...`);
       
-      if (pdfBuffers.length === 0) {
-        addLog('No valid PDFs harvested. Generation aborted.');
-        updateStage('merge', 'error');
-        return;
-      }
-
       const mergedPdf = await PDFDocument.create();
-      for (const buffer of pdfBuffers) {
+      let totalPages = 0;
+
+      for (let i = 0; i < pdfBuffers.length; i++) {
         try {
-          const pdf = await PDFDocument.load(buffer);
-          const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-          copiedPages.forEach((page) => mergedPdf.addPage(page));
+          const pdf = await PDFDocument.load(pdfBuffers[i]);
+          const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          pages.forEach(p => mergedPdf.addPage(p));
+          totalPages += pages.length;
+          addLog(`Sequence ${i + 1}: +${pages.length} pages integrated.`);
         } catch (e) {
-          addLog('Error processing page. Skipping corrupted slice.');
+          addLog(`Sequence ${i + 1}: Format mismatch. Source ignored.`);
         }
       }
+
+      if (totalPages === 0) {
+        throw new Error('Synthesis failed: 0 pages generated. Ensure Uber links are PDF-ready.');
+      }
+
+      addLog(`Final synthesis complete: ${totalPages} pages in total.`);
       const pdfBytes = await mergedPdf.save();
       setMergedPdfBlob(new Blob([pdfBytes], { type: 'application/pdf' }));
       updateStage('merge', 'done');
@@ -243,33 +247,33 @@ export default function GeneratePage() {
                 </div>
               </div>
 
-              <div className="flex gap-6 flex-wrap-mobile">
-                <button onClick={downloadPDF} className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--primary-hsl), 0.3)', cursor: 'pointer', transition: '0.3s' }}>
-                  <div style={{ width: '80px', height: '80px', background: 'hsla(var(--primary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Layers size={40} color="var(--primary)" />
-                  </div>
-                  <div className="text-center">
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>Merged Receipt PDF</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Full Trip Evidence</div>
-                  </div>
-                  <div className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
-                    <Download size={14} /> Download PDF
-                  </div>
-                </button>
-
-                <button onClick={downloadExcel} className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--secondary-hsl), 0.3)', cursor: 'pointer', transition: '0.3s' }}>
-                  <div style={{ width: '80px', height: '80px', background: 'hsla(var(--secondary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <FileSpreadsheet size={40} color="var(--secondary)" />
-                  </div>
-                  <div className="text-center">
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>Expense Summary</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Excel Sheet for HR</div>
-                  </div>
-                  <div className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
-                    <Download size={14} /> Download Excel
-                  </div>
-                </button>
+          <div className="flex gap-6 flex-wrap-mobile">
+            <div className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--primary-hsl), 0.3)' }}>
+              <div style={{ width: '80px', height: '80px', background: 'hsla(var(--primary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Layers size={40} color="var(--primary)" />
               </div>
+              <div className="text-center">
+                <div className="text-bright" style={{ fontSize: '1.25rem', fontWeight: 800 }}>Merged Receipt PDF</div>
+                <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '4px' }}>Full Trip Evidence</div>
+              </div>
+              <button onClick={downloadPDF} className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
+                <Download size={14} /> Download PDF
+              </button>
+            </div>
+
+            <div className="flex-1 panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '40px', borderColor: 'hsla(var(--secondary-hsl), 0.3)' }}>
+              <div style={{ width: '80px', height: '80px', background: 'hsla(var(--secondary-hsl), 0.1)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FileSpreadsheet size={40} color="var(--secondary)" />
+              </div>
+              <div className="text-center">
+                <div className="text-bright" style={{ fontSize: '1.25rem', fontWeight: 800 }}>Expense Summary</div>
+                <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '4px' }}>Excel Sheet for HR</div>
+              </div>
+              <button onClick={downloadExcel} className="btn-secondary" style={{ padding: '12px 24px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}>
+                <Download size={14} /> Download Excel
+              </button>
+            </div>
+          </div>
             </motion.div>
           )}
         </AnimatePresence>

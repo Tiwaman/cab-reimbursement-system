@@ -159,7 +159,12 @@ h1, h2, h3, .heading-outfit {
   padding: 40px;
   text-align: left;
   transition: all 0.4s ease;
+  color: #cbd5e1; /* Brighter slate for better contrast */
 }
+
+.text-muted { color: #64748b; }
+.text-bright { color: #f8fafc; }
+.text-accent { color: var(--accent); }
 
 .card-feature:hover {
   background: hsla(255, 100%, 100%, 0.06);
