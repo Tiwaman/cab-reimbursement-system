@@ -48,6 +48,10 @@ export async function GET(request: Request) {
         }
 
         const $ = cheerio.load(body);
+        const directPdf = $('a[href*="download-pdf"]').attr('href');
+        const viewReceipt = $('a[href*="receipt"]').attr('href');
+        const anyPdf = $('a:contains("PDF")').attr('href');
+        const finalPdfLink = (directPdf || anyPdf || viewReceipt || '').trim();
         
         // Amount
         const amountText = $('td:contains("₹"), span:contains("₹")').first().text().trim();
@@ -86,7 +90,7 @@ export async function GET(request: Request) {
           amount,
           pickup: pickup.length > 45 ? pickup.slice(0, 42) + '...' : pickup,
           drop: drop.length > 45 ? drop.slice(0, 42) + '...' : drop,
-          pdfLink: $('a:contains("PDF")').attr('href') || $('a[href*="receipt"]').attr('href') || ''
+          pdfLink: finalPdfLink
         };
       })
     );

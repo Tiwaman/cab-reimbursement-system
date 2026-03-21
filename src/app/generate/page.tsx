@@ -70,17 +70,22 @@ export default function GeneratePage() {
         addLog(`Harvesting receipt ${i + 1}/${invoices.length}: ${inv.date}...`);
         
         if (!inv.pdfLink) {
-          addLog(`Warning: No PDF link for trip ${inv.date}. Skipping.`);
+          addLog(`Skipped: No PDF source found for ${inv.date}.`);
           continue;
         }
 
         try {
           const res = await fetch(`/api/pdf-proxy?url=${encodeURIComponent(inv.pdfLink)}`);
-          if (!res.ok) throw new Error('Fetch failed');
+          if (res.status === 415) {
+            addLog(`Note: ${inv.date} is a web-only receipt. Synthesis unavailable.`);
+            continue;
+          }
+          if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+          
           const buffer = await res.arrayBuffer();
           pdfBuffers.push(new Uint8Array(buffer));
         } catch (err) {
-          addLog(`Error fetching PDF: ${inv.date}. Link might be expired.`);
+          addLog(`${inv.date}: Link expired or protected.`);
         }
       }
       updateStage('harvest', 'done');
@@ -110,7 +115,7 @@ export default function GeneratePage() {
 
       addLog(`Final synthesis complete: ${totalPages} pages in total.`);
       const pdfBytes = await mergedPdf.save();
-      setMergedPdfBlob(new Blob([pdfBytes], { type: 'application/pdf' }));
+      setMergedPdfBlob(new Blob([pdfBytes as any], { type: 'application/pdf' }));
       updateStage('merge', 'done');
 
       // Stage 4: Excel Summary
