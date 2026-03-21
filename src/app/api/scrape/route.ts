@@ -71,32 +71,37 @@ export async function GET(request: Request) {
 
         const formattedDate = finalDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        // Improved Location Extraction
-        const addressLines: string[] = [];
-        const dateBoilerplateRegex = /\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/i;
-        const timeBoilerplateRegex = /\d{1,2}:\d{2}\s?(?:AM|PM)/i;
-
-        $('td, div, p, span').each((_, el) => {
-          const t = $(el).text().trim();
-          // Filter out obvious noise
-          if (t.length < 5 || t.length > 150) return;
-          if (t.includes('Uber') || t.includes('Total') || t.includes('Support') || t.includes('Thanks')) return;
-          if (t.includes('Invite') || t.includes('Profile') || t.includes('Rider') || t.includes('Trip')) return;
-          if (dateBoilerplateRegex.test(t) || timeBoilerplateRegex.test(t)) return;
-          
-          // Heuristic: Uber addresses are usually in specific containers without much other text
-          // If the text looks like an address (starts with number or uppercase, contains some space)
-          if (/^[A-Z0-9]/.test(t) && t.includes(' ') && !t.includes('@')) {
-            // Further refine: excludes lines that are just numbers or short codes
-            if (!/^\d+$/.test(t) && !addressLines.includes(t)) {
-              addressLines.push(t);
-            }
+        // Deep-Probe Location Extraction (Surgical Precision)
+        const allTextNodes: string[] = [];
+        $('td, div, p').each((_, el) => {
+          const t = $(el).text().trim().replace(/\s+/g, ' ');
+          if (t.length > 10 && t.length < 200 && !allTextNodes.includes(t)) {
+            allTextNodes.push(t);
           }
         });
 
-        // Uber Specific: Usually the first two valid generic strings that aren't excluded are Pickup and Drop
-        const pickup = addressLines[0] || 'Unknown Pickup';
-        const drop = addressLines[1] || addressLines[addressLines.length - 1] || pickup;
+        const addressKeywords = ['Road', 'St', 'Ave', 'Sector', 'Phase', 'Building', 'Block', 'Mumbai', 'Maharashtra', 'India', 'Unnamed', 'Gaothan', 'MIDC'];
+        const boilerplateKeywords = ['hope you enjoyed', 'Wait Time', 'Payments', 'Congrats', 'discount', 'Total', 'Subtotal', 'Promotion', 'Uber', 'Invite', 'Rating'];
+        const zipCodeRegex = /\b\d{6}\b/;
+
+        const validAddresses = allTextNodes.filter(t => {
+          // 1. Technical Exclusions
+          if (boilerplateKeywords.some(key => t.toLowerCase().includes(key.toLowerCase()))) return false;
+          if (t.includes('@') || t.includes('http')) return false;
+          
+          // 2. Spatial Signal Check
+          const hasSpatialSignal = addressKeywords.some(key => t.toLowerCase().includes(key.toLowerCase())) || zipCodeRegex.test(t);
+          
+          // 3. Negative Temporal Check (Don't grab strings that are mostly just dates)
+          const dateCount = (t.match(/\d{4}/g) || []).length;
+          if (dateCount > 1) return false;
+
+          return hasSpatialSignal;
+        });
+
+        // Uber Specific: Usually the first two valid addresses are Pickup and Drop
+        const pickup = validAddresses[0] || 'Unknown Pickup';
+        const drop = validAddresses[1] || validAddresses[validAddresses.length - 1] || pickup;
 
         return {
           id: msg.id,
