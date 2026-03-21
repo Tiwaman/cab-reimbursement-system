@@ -176,37 +176,68 @@ export default function GeneratePage() {
           </div>
         </div>
 
-        {/* Results Suite */}
+        {/* Results Suite - Elite Refinement */}
         <AnimatePresence>
           {stages.every(s => s.status === 'done') && (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               className="flex justify-center"
+              style={{ width: '100%' }}
             >
-              <button 
-                onClick={downloadExcel} 
-                className="panel-premium hover-scale flex flex-column items-center gap-6" 
+              <div 
+                className="panel-premium" 
                 style={{ 
-                  padding: '48px', 
+                  padding: '32px 40px', 
                   width: '100%', 
-                  maxWidth: '400px', 
-                  borderColor: 'hsla(var(--primary-hsl), 0.3)', 
-                  background: 'linear-gradient(135deg, hsla(var(--primary-hsl), 0.1), transparent)',
-                  textAlign: 'center'
+                  maxWidth: '700px', 
+                  background: 'linear-gradient(135deg, hsla(var(--primary-hsl), 0.08), hsla(255, 100%, 100%, 0.03))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '32px',
+                  border: '1px solid hsla(var(--primary-hsl), 0.25)',
+                  boxShadow: '0 20px 40px -20px rgba(0,0,0,0.5)',
+                  flexWrap: 'wrap'
                 }}
               >
-                <div style={{ width: '80px', height: '80px', background: 'var(--primary)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(var(--primary-rgb),0.2)' }}>
-                  <FileSpreadsheet size={36} color="white" />
+                <div className="flex items-center gap-6">
+                  <div style={{ 
+                    width: '56px', 
+                    height: '56px', 
+                    background: 'hsla(var(--primary-hsl), 0.15)', 
+                    borderRadius: '16px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid hsla(var(--primary-hsl), 0.3)'
+                  }}>
+                    <FileSpreadsheet size={28} color="var(--primary)" />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div className="text-bright" style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+                      Reimbursement Summary
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.8rem', marginTop: '2px', fontWeight: 500 }}>
+                      XLSX • Optimized for HR Submission
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-bright" style={{ fontSize: '1.4rem', fontWeight: 800 }}>Reimbursement Summary</div>
-                  <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>Ready for HR Submission</div>
-                </div>
-                <div className="btn-primary" style={{ padding: '14px 28px', fontSize: '0.9rem', width: '100%', justifyContent: 'center', marginTop: '8px' }}>
-                  <Download size={16} /> Download Excel (.xlsx)
-                </div>
-              </button>
+
+                <button 
+                  onClick={downloadExcel} 
+                  className="btn-primary hover-scale" 
+                  style={{ 
+                    padding: '14px 32px', 
+                    fontSize: '0.95rem', 
+                    fontWeight: 700,
+                    borderRadius: '14px',
+                    boxShadow: '0 10px 20px -5px rgba(var(--primary-rgb), 0.4)'
+                  }}
+                >
+                  <Download size={18} /> Download Report
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
