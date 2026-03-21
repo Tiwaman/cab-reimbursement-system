@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -25,6 +25,25 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Load persisted filters
+  useEffect(() => {
+    const savedStart = localStorage.getItem('filter_start_date');
+    const savedEnd = localStorage.getItem('filter_end_date');
+    if (savedStart) setStartDate(savedStart);
+    if (savedEnd) setEndDate(savedEnd);
+  }, []);
+
+  // Persist filters on change
+  const handleStartChange = (val: string) => {
+    setStartDate(val);
+    localStorage.setItem('filter_start_date', val);
+  };
+
+  const handleEndChange = (val: string) => {
+    setEndDate(val);
+    localStorage.setItem('filter_end_date', val);
+  };
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -81,12 +100,12 @@ export default function Dashboard() {
             <div className="flex gap-6 items-center flex-wrap-mobile">
               <div className="field-group">
                 <Calendar size={18} color="var(--primary)" />
-                <input type="date" className="field-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <input type="date" className="field-input" value={startDate} onChange={(e) => handleStartChange(e.target.value)} />
               </div>
               <span className="hide-mobile" style={{ fontWeight: 900, color: '#334155' }}>/</span>
               <div className="field-group">
                 <Calendar size={18} color="var(--secondary)" />
-                <input type="date" className="field-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <input type="date" className="field-input" value={endDate} onChange={(e) => handleEndChange(e.target.value)} />
               </div>
             </div>
 
