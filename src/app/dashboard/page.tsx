@@ -57,7 +57,7 @@ export default function Dashboard() {
       if (data.error) throw new Error(data.error);
       if (!data.invoices || data.invoices.length === 0) throw new Error('No Uber receipts found in the specified range.');
       
-      setInvoices(data.invoices.map((inv: any) => ({ ...inv, selected: true })));
+      setInvoices(data.invoices.map((inv: Invoice) => ({ ...inv, selected: true })));
     } catch (err: any) {
       setError(err.message);
     } finally {

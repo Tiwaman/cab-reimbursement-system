@@ -6,7 +6,6 @@ import {
   Loader2, CheckCircle2, FileText, Download, AlertCircle, 
   Zap, ArrowLeft, Layers, FileSpreadsheet, Sparkles 
 } from 'lucide-react';
-import { PDFDocument } from 'pdf-lib';
 import * as XLSX from 'xlsx';
 
 interface Invoice {
@@ -16,6 +15,7 @@ interface Invoice {
   pickup: string;
   drop: string;
   pdfLink: string;
+  selected?: boolean;
 }
 
 export default function GeneratePage() {
