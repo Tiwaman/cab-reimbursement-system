@@ -54,12 +54,12 @@ export default function Dashboard() {
 
   return (
     <div className="premium-gradient">
-      <div className="container" style={{ paddingTop: '100px', paddingBottom: '160px' }}>
+      <div className="container" style={{ paddingTop: '100px', paddingBottom: '280px' }}>
         
         {/* Elite Header */}
-        <header className="flex justify-between items-end" style={{ marginBottom: '80px' }}>
+        <header className="flex justify-between items-end dashboard-header" style={{ marginBottom: '80px' }}>
           <div>
-            <div className="flex gap-4" style={{ marginBottom: '20px' }}>
+            <div className="flex gap-4" style={{ marginBottom: '20px', flexWrap: 'wrap' }}>
               <button onClick={() => window.location.href = '/'} className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem', borderRadius: '12px' }}>
                 ← Home
               </button>
@@ -76,14 +76,14 @@ export default function Dashboard() {
         </header>
 
         {/* Master Control Deck */}
-        <div className="panel-premium" style={{ marginBottom: '60px', padding: '40px' }}>
-          <div className="flex justify-between items-center gap-12" style={{ flexWrap: 'wrap' }}>
-            <div className="flex gap-6 items-center">
+        <div className="panel-premium control-deck" style={{ marginBottom: '60px', padding: '40px' }}>
+          <div className="flex justify-between items-center gap-12 flex-wrap-mobile">
+            <div className="flex gap-6 items-center flex-wrap-mobile">
               <div className="field-group">
                 <Calendar size={18} color="var(--primary)" />
                 <input type="date" className="field-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
-              <span style={{ fontWeight: 900, color: '#334155' }}>/</span>
+              <span className="hide-mobile" style={{ fontWeight: 900, color: '#334155' }}>/</span>
               <div className="field-group">
                 <Calendar size={18} color="var(--secondary)" />
                 <input type="date" className="field-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -144,12 +144,14 @@ export default function Dashboard() {
                     <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginTop: '4px' }}>Verified Uber Invoice</div>
                   </td>
                   <td className="data-table-cell">
-                    <div className="flex items-center gap-4">
-                      <div style={{ width: '40px', height: '40px', background: 'hsla(var(--primary-hsl), 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <MapPin size={18} color="var(--primary)" />
+                    <div className="flex flex-column gap-2">
+                      <div className="flex items-center gap-3">
+                        <div style={{ width: '8px', height: '8px', background: 'var(--primary)', borderRadius: '50%' }}></div>
+                        <div style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 500 }}>{invoice.pickup}</div>
                       </div>
-                      <div style={{ fontSize: '0.9rem', maxWidth: '350px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#cbd5e1', fontWeight: 500 }}>
-                        {invoice.pickup}
+                      <div className="flex items-center gap-3">
+                        <div style={{ width: '8px', height: '8px', background: 'var(--secondary)', borderRadius: '50%' }}></div>
+                        <div style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 500 }}>{invoice.drop}</div>
                       </div>
                     </div>
                   </td>
@@ -158,7 +160,7 @@ export default function Dashboard() {
                   </td>
                   <td className="data-table-cell" style={{ textAlign: 'right' }}>
                     <a href={invoice.pdfLink} target="_blank" className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.8rem', borderRadius: '14px' }}>
-                      <Download size={14} /> View PDF
+                      View PDF
                     </a>
                   </td>
                 </motion.tr>

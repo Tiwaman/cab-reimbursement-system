@@ -19,18 +19,23 @@ export async function GET(request: Request) {
     auth.setCredentials({ access_token: session.accessToken });
     const gmail = google.gmail({ version: 'v1', auth });
 
+    // 1. Build Gmail search query (Buffer by 3 days behind to catch late receipts)
     let q = 'from:noreply@uber.com (subject:trip OR subject:receipt)';
-    if (startDate) q += ` after:${startDate.replace(/-/g, '/')}`;
+    if (startDate) {
+      const startBuffer = new Date(startDate);
+      startBuffer.setDate(startBuffer.getDate() - 3); // Buffer back
+      q += ` after:${startBuffer.toISOString().split('T')[0].replace(/-/g, '/')}`;
+    }
     if (endDate) {
       const nextDay = new Date(endDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setDate(nextDay.getDate() + 2); // Buffer forward
       q += ` before:${nextDay.toISOString().split('T')[0].replace(/-/g, '/')}`;
     }
 
-    const response = await gmail.users.messages.list({ userId: 'me', q, maxResults: 15 });
+    const response = await gmail.users.messages.list({ userId: 'me', q, maxResults: 40 });
     if (!response.data.messages) return NextResponse.json({ invoices: [] });
 
-    const invoices = await Promise.all(
+    const rawInvoices = await Promise.all(
       response.data.messages.map(async (msg) => {
         const detail = await gmail.users.messages.get({ userId: 'me', id: msg.id!, format: 'full' });
         let body = '';
@@ -43,32 +48,72 @@ export async function GET(request: Request) {
         }
 
         const $ = cheerio.load(body);
+        
+        // Amount
         const amountText = $('td:contains("₹"), span:contains("₹")').first().text().trim();
         const amountMatch = amountText.replace(/,/g, '').match(/₹\s?(\d+\.?\d*)/);
+        const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
         
+        // TRUE Trip Date (Search body text)
+        const bodyText = $.root().text();
+        const dateMatch = bodyText.match(/(\d{1,2}\s(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{4})|((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{1,2},\s\d{4})/i);
+        
+        // Convert to comparable date
+        let finalDateObj = new Date(parseInt(detail.data.internalDate!));
+        if (dateMatch) {
+          const parsedDate = new Date(dateMatch[0]);
+          if (!isNaN(parsedDate.getTime())) finalDateObj = parsedDate;
+        }
+
+        const formattedDate = finalDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        // Location
         const addressLines: string[] = [];
         $('td, div').each((_, el) => {
           const t = $(el).text().trim();
-          if (t.length > 15 && t.length < 150 && !t.includes('Uber') && !t.includes('Total')) {
-            if (/^\d+|[A-Z]/.test(t)) addressLines.push(t);
+          if (t.length > 15 && t.length < 120 && !t.includes('Uber') && !t.includes('Total') && !t.includes('Support')) {
+            if (/^\d+|[A-Z]/.test(t) && !t.includes('Invite')) addressLines.push(t);
           }
         });
 
         const pickup = addressLines[0] || 'Unknown Pickup';
-        const drop = addressLines[1] || pickup;
+        const drop = addressLines[1] || addressLines[addressLines.length - 1] || pickup;
 
         return {
           id: msg.id,
-          date: new Date(parseInt(detail.data.internalDate!)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          amount: amountMatch ? parseFloat(amountMatch[1]) : 0,
-          pickup: pickup.slice(0, 40),
-          drop: drop.slice(0, 40),
+          date: formattedDate,
+          dateObj: finalDateObj,
+          amount,
+          pickup: pickup.length > 45 ? pickup.slice(0, 42) + '...' : pickup,
+          drop: drop.length > 45 ? drop.slice(0, 42) + '...' : drop,
           pdfLink: $('a:contains("PDF")').attr('href') || $('a[href*="receipt"]').attr('href') || ''
         };
       })
     );
 
-    return NextResponse.json({ invoices });
+    // 2. Surgical Filtering & De-duplication
+    const uniqueMap = new Map();
+    rawInvoices.forEach(inv => {
+      // Timezone-agnostic comparison (Local Day Logic)
+      const y = inv.dateObj.getFullYear();
+      const m = String(inv.dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(inv.dateObj.getDate()).padStart(2, '0');
+      const invDay = `${y}-${m}-${d}`;
+
+      if (startDate && invDay < startDate) return;
+      if (endDate && invDay > endDate) return;
+
+      const key = `${inv.date}-${inv.amount}-${inv.pickup.slice(0, 20)}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, inv);
+      }
+    });
+
+    const finalInvoices = Array.from(uniqueMap.values())
+      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+      .map(({ dateObj, ...rest }) => rest);
+
+    return NextResponse.json({ invoices: finalInvoices });
   } catch (error: any) {
     console.error('API Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

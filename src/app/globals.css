@@ -87,9 +87,14 @@ h1, h2, h3, .heading-outfit {
 }
 
 .flex { display: flex; }
+.flex-column { flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+.text-center { text-align: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
 .gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
 .gap-12 { gap: 48px; }
 
 /* Buttons & Interactive */
@@ -228,8 +233,9 @@ h1, h2, h3, .heading-outfit {
 .deck-floating {
   position: fixed;
   bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   width: calc(100% - 80px);
   max-width: 1000px;
   background: hsla(240, 10%, 10%, 0.8);
@@ -258,6 +264,14 @@ h1, h2, h3, .heading-outfit {
   align-items: center;
   gap: 16px;
   transition: 0.3s;
+  width: 100%; /* Default to full width for stacking */
+}
+
+@media (min-width: 768px) {
+  .field-group {
+    width: auto;
+    min-width: 200px;
+  }
 }
 
 .field-group:focus-within {
@@ -274,4 +288,107 @@ h1, h2, h3, .heading-outfit {
   font-weight: 500;
   outline: none;
   width: 100%;
+}
+
+/* Mobile Elite Refinement */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 24px;
+  }
+
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 32px;
+    margin-bottom: 40px !important;
+  }
+
+  .dashboard-header .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .control-deck {
+    padding: 32px 24px !important;
+  }
+
+  .control-deck .flex-wrap-mobile {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .control-deck .btn-primary {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+
+  /* Table to Card Transformation */
+  .table-elite thead {
+    display: none; /* Hide headers on mobile */
+  }
+
+  .table-elite, .table-elite tbody, .table-elite tr, .table-elite td {
+    display: block;
+    width: 100%;
+  }
+
+  .table-elite tr.row-item {
+    margin-bottom: 24px;
+    padding: 24px;
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    background: var(--surface);
+  }
+
+  .table-elite td {
+    padding: 12px 0 !important;
+    border: none !important;
+  }
+
+  .table-elite td:first-child {
+    border-radius: 0 !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--glass-border) !important;
+    padding-bottom: 16px !important;
+    margin-bottom: 16px;
+  }
+
+  .table-elite td:first-child::after {
+    content: "Select Invoice";
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .table-elite td[style*="text-align: right"] {
+    text-align: left !important;
+  }
+
+  /* Floating Action Deck Mobile */
+  .deck-floating {
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    transform: none;
+    width: auto;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+    border-radius: 32px;
+    text-align: center;
+  }
+
+  .deck-floating .btn-primary {
+    width: 100%;
+    padding: 20px !important;
+    font-size: 1rem !important;
+    justify-content: center;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
 }
