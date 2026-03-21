@@ -71,15 +71,30 @@ export async function GET(request: Request) {
 
         const formattedDate = finalDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        // Location
+        // Improved Location Extraction
         const addressLines: string[] = [];
-        $('td, div').each((_, el) => {
+        const dateBoilerplateRegex = /\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/i;
+        const timeBoilerplateRegex = /\d{1,2}:\d{2}\s?(?:AM|PM)/i;
+
+        $('td, div, p, span').each((_, el) => {
           const t = $(el).text().trim();
-          if (t.length > 15 && t.length < 120 && !t.includes('Uber') && !t.includes('Total') && !t.includes('Support')) {
-            if (/^\d+|[A-Z]/.test(t) && !t.includes('Invite')) addressLines.push(t);
+          // Filter out obvious noise
+          if (t.length < 5 || t.length > 150) return;
+          if (t.includes('Uber') || t.includes('Total') || t.includes('Support') || t.includes('Thanks')) return;
+          if (t.includes('Invite') || t.includes('Profile') || t.includes('Rider') || t.includes('Trip')) return;
+          if (dateBoilerplateRegex.test(t) || timeBoilerplateRegex.test(t)) return;
+          
+          // Heuristic: Uber addresses are usually in specific containers without much other text
+          // If the text looks like an address (starts with number or uppercase, contains some space)
+          if (/^[A-Z0-9]/.test(t) && t.includes(' ') && !t.includes('@')) {
+            // Further refine: excludes lines that are just numbers or short codes
+            if (!/^\d+$/.test(t) && !addressLines.includes(t)) {
+              addressLines.push(t);
+            }
           }
         });
 
+        // Uber Specific: Usually the first two valid generic strings that aren't excluded are Pickup and Drop
         const pickup = addressLines[0] || 'Unknown Pickup';
         const drop = addressLines[1] || addressLines[addressLines.length - 1] || pickup;
 
