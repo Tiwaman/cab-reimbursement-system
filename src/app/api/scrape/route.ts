@@ -71,37 +71,48 @@ export async function GET(request: Request) {
 
         const formattedDate = finalDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        // Deep-Probe Location Extraction (Surgical Precision)
-        const allTextNodes: string[] = [];
-        $('td, div, p').each((_, el) => {
-          const t = $(el).text().trim().replace(/\s+/g, ' ');
-          if (t.length > 10 && t.length < 200 && !allTextNodes.includes(t)) {
-            allTextNodes.push(t);
-          }
-        });
-
-        const addressKeywords = ['Road', 'St', 'Ave', 'Sector', 'Phase', 'Building', 'Block', 'Mumbai', 'Maharashtra', 'India', 'Unnamed', 'Gaothan', 'MIDC'];
+        // Targeted Anchor-Based Extraction
+        let tripDetailsFound = false;
+        const potentialAddresses: string[] = [];
+        const allNodes: string[] = [];
+        
+        const addressKeywords = ['Road', 'St', 'Ave', 'Sector', 'Phase', 'Building', 'Block', 'Mumbai', 'Maharashtra', 'India', 'Unnamed', 'Gaothan', 'MIDC', 'Apartment', 'Society'];
         const boilerplateKeywords = ['hope you enjoyed', 'Wait Time', 'Payments', 'Congrats', 'discount', 'Total', 'Subtotal', 'Promotion', 'Uber', 'Invite', 'Rating'];
         const zipCodeRegex = /\b\d{6}\b/;
 
-        const validAddresses = allTextNodes.filter(t => {
-          // 1. Technical Exclusions
-          if (boilerplateKeywords.some(key => t.toLowerCase().includes(key.toLowerCase()))) return false;
-          if (t.includes('@') || t.includes('http')) return false;
+        $('td, div, p, span').each((_, el) => {
+          const t = $(el).text().trim().replace(/\s+/g, ' ');
+          if (t.length > 5 && !allNodes.includes(t)) allNodes.push(t);
           
-          // 2. Spatial Signal Check
-          const hasSpatialSignal = addressKeywords.some(key => t.toLowerCase().includes(key.toLowerCase())) || zipCodeRegex.test(t);
-          
-          // 3. Negative Temporal Check (Don't grab strings that are mostly just dates)
-          const dateCount = (t.match(/\d{4}/g) || []).length;
-          if (dateCount > 1) return false;
+          if (t.toLowerCase().includes('trip details')) {
+            tripDetailsFound = true;
+            return;
+          }
 
-          return hasSpatialSignal;
+          if (tripDetailsFound) {
+            // Validate if this node looks like an address
+            if (t.length > 10 && t.length < 250) {
+              const hasSpatialSignal = addressKeywords.some(key => t.toLowerCase().includes(key.toLowerCase())) || zipCodeRegex.test(t);
+              const isBoilerplate = boilerplateKeywords.some(key => t.toLowerCase().includes(key.toLowerCase()));
+              const dateCount = (t.match(/\d{4}/g) || []).length;
+
+              if (hasSpatialSignal && !isBoilerplate && dateCount <= 1) {
+                if (!potentialAddresses.includes(t)) potentialAddresses.push(t);
+              }
+            }
+          }
         });
 
-        // Uber Specific: Usually the first two valid addresses are Pickup and Drop
-        const pickup = validAddresses[0] || 'Unknown Pickup';
-        const drop = validAddresses[1] || validAddresses[validAddresses.length - 1] || pickup;
+        // Fallback to global search if no "Trip details" anchor found
+        const finalAddresses = potentialAddresses.length >= 2 ? potentialAddresses : 
+          allNodes.filter((t: string) => {
+            const hasSpatialSignal = addressKeywords.some(key => t.toLowerCase().includes(key.toLowerCase())) || zipCodeRegex.test(t);
+            const isBoilerplate = boilerplateKeywords.some(key => t.toLowerCase().includes(key.toLowerCase()));
+            return hasSpatialSignal && !isBoilerplate;
+          });
+
+        const pickup = finalAddresses[0] || 'Unknown Pickup';
+        const drop = finalAddresses[1] || finalAddresses[finalAddresses.length - 1] || pickup;
 
         return {
           id: msg.id,
