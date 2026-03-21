@@ -11,18 +11,26 @@ export async function GET(request: Request) {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/pdf,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: `Upstream error: ${response.status}` }, { status: response.status });
+      const errorText = await response.text().catch(() => 'No detail');
+      return NextResponse.json({ 
+        error: `Upstream error: ${response.status}`,
+        detail: errorText.slice(0, 100)
+      }, { status: response.status });
     }
 
     const contentType = response.headers.get('Content-Type') || '';
-    if (!contentType.includes('pdf') && !url.includes('.pdf')) {
-      // It might be a redirect or a login page
-      return NextResponse.json({ error: 'Source is not a PDF (likely a login page or HTML receipt)' }, { status: 415 });
+    if (!contentType.includes('pdf') && !url.includes('.pdf') && !contentType.includes('application/octet-stream')) {
+      return NextResponse.json({ error: 'Source is not a PDF' }, { status: 415 });
     }
 
     const arrayBuffer = await response.arrayBuffer();

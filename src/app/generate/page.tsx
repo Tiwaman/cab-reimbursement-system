@@ -58,6 +58,9 @@ export default function GeneratePage() {
     try {
       // Stage 1: Data Synthesis
       updateStage('data', 'running');
+      if (invoices.length > 0) {
+        addLog(`Verifying source: ${invoices[0].pdfLink.slice(0, 30)}...`);
+      }
       addLog(`Preparing metadata for ${invoices.length} trips...`);
       await new Promise(r => setTimeout(r, 800));
       updateStage('data', 'done');
@@ -80,12 +83,15 @@ export default function GeneratePage() {
             addLog(`Note: ${inv.date} is a web-only receipt. Synthesis unavailable.`);
             continue;
           }
-          if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `Proxy error: ${res.status}`);
+          }
           
           const buffer = await res.arrayBuffer();
           pdfBuffers.push(new Uint8Array(buffer));
-        } catch (err) {
-          addLog(`${inv.date}: Link expired or protected.`);
+        } catch (err: any) {
+          addLog(`${inv.date}: ${err.message}`);
         }
       }
       updateStage('harvest', 'done');
