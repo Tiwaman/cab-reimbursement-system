@@ -116,18 +116,18 @@ export default function GeneratePage() {
         </div>
 
         {/* Title Deck */}
-        <div className="text-center" style={{ marginBottom: '64px' }}>
-          <h1 className="text-gradient" style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)', marginBottom: '16px', lineHeight: 1.1 }}>
-            Exporting Your <br/>Summary
+        <div className="text-center" style={{ marginBottom: '40px' }}>
+          <h1 className="text-gradient" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', marginBottom: '12px', lineHeight: 1.1 }}>
+            Exporting Summary
           </h1>
-          <p className="text-muted" style={{ fontSize: '1.1rem', fontWeight: 500 }}>
-            Compiling <span className="text-bright">{invoices.length}</span> trips into a high-precision Excel report.
+          <p className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>
+            Compiling <span className="text-bright">{invoices.length}</span> records into a high-precision Excel report.
           </p>
         </div>
 
-        {/* Synthesis Engine Panel */}
-        <div className="panel-premium" style={{ padding: '48px', marginBottom: '40px' }}>
-          <div className="flex flex-column gap-10">
+        {/* Unified Synthesis Engine Panel */}
+        <div className="panel-premium" style={{ padding: '40px', marginBottom: '24px' }}>
+          <div className="flex flex-column gap-8">
             {stages.map((stage, idx) => (
               <div key={stage.id} className="flex items-center gap-6">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
@@ -156,23 +156,23 @@ export default function GeneratePage() {
             <button 
               onClick={startGeneration}
               className="btn-primary" 
-              style={{ width: '100%', marginTop: '48px', padding: '24px', fontSize: '1.25rem' }}
+              style={{ width: '100%', marginTop: '40px', padding: '20px', fontSize: '1.1rem' }}
             >
-              Generate Final Excel <Sparkles size={24} />
+              Generate Final Excel <Sparkles size={20} />
             </button>
           )}
-        </div>
 
-        {/* Neural Log View */}
-        <div className="panel-premium" style={{ background: 'rgba(0,0,0,0.3)', padding: '32px', borderStyle: 'dashed', marginBottom: '48px' }}>
-          <div className="flex flex-column gap-3" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-            {logs.map((log, i) => (
-              <div key={i} className="flex gap-3">
-                <span className="text-accent" style={{ fontWeight: 900 }}>»</span>
-                <span className="text-muted">{log}</span>
-              </div>
-            ))}
-            {isGenerating && <span className="w-2 h-4 bg-primary animate-pulse" />}
+          {/* Integrated Logs */}
+          <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+            <div className="flex flex-column gap-2">
+              {logs.map((log, i) => (
+                <div key={i} className="flex gap-3">
+                  <span className="text-accent" style={{ opacity: 0.6 }}>»</span>
+                  <span className="text-muted">{log}</span>
+                </div>
+              ))}
+              {isGenerating && <span className="w-2 h-3 bg-primary animate-pulse" />}
+            </div>
           </div>
         </div>
 
@@ -180,20 +180,31 @@ export default function GeneratePage() {
         <AnimatePresence>
           {stages.every(s => s.status === 'done') && (
             <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               className="flex justify-center"
             >
-              <button onClick={downloadExcel} className="panel-premium hover-scale flex flex-column items-center gap-6" style={{ padding: '60px', width: '100%', maxWidth: '450px', borderColor: 'hsla(var(--primary-hsl), 0.4)', background: 'hsla(var(--primary-hsl), 0.05)' }}>
-                <div style={{ width: '90px', height: '90px', background: 'var(--primary)', borderRadius: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(var(--primary-rgb),0.3)' }}>
-                  <FileSpreadsheet size={44} color="white" />
+              <button 
+                onClick={downloadExcel} 
+                className="panel-premium hover-scale flex flex-column items-center gap-6" 
+                style={{ 
+                  padding: '48px', 
+                  width: '100%', 
+                  maxWidth: '400px', 
+                  borderColor: 'hsla(var(--primary-hsl), 0.3)', 
+                  background: 'linear-gradient(135deg, hsla(var(--primary-hsl), 0.1), transparent)',
+                  textAlign: 'center'
+                }}
+              >
+                <div style={{ width: '80px', height: '80px', background: 'var(--primary)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(var(--primary-rgb),0.2)' }}>
+                  <FileSpreadsheet size={36} color="white" />
                 </div>
-                <div className="text-center">
-                  <div className="text-bright" style={{ fontSize: '1.5rem', fontWeight: 800 }}>Reimbursement Summary</div>
-                  <div className="text-muted" style={{ fontSize: '0.9rem', marginTop: '6px' }}>Ready for HR Submission</div>
+                <div>
+                  <div className="text-bright" style={{ fontSize: '1.4rem', fontWeight: 800 }}>Reimbursement Summary</div>
+                  <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>Ready for HR Submission</div>
                 </div>
-                <div className="btn-primary" style={{ padding: '16px 32px', fontSize: '1rem', width: '100%', justifyContent: 'center' }}>
-                  <Download size={18} /> Download Excel (.xlsx)
+                <div className="btn-primary" style={{ padding: '14px 28px', fontSize: '0.9rem', width: '100%', justifyContent: 'center', marginTop: '8px' }}>
+                  <Download size={16} /> Download Excel (.xlsx)
                 </div>
               </button>
             </motion.div>
