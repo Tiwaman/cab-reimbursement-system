@@ -1,3 +1,7 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes — long-running Playwright job
+
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureSession, downloadReceipt, extractTripId, closeSession } from '@/lib/uber-automation';
 import { mergePdfs } from '@/lib/pdf-merge';
