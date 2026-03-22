@@ -10,6 +10,56 @@ interface ReceiptPdfInput {
   footerNote?: string;
 }
 
+const PDF_REPLACEMENTS: Record<string, string> = {
+  "₹": "INR ",
+  "→": "->",
+  "←": "<-",
+  "—": "-",
+  "–": "-",
+  "•": "-",
+  "…": "...",
+  "’": "'",
+  "‘": "'",
+  "“": '"',
+  "”": '"',
+  "\u00A0": " ",
+};
+
+function canEncode(font: PDFFont, value: string) {
+  try {
+    font.encodeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeForPdf(text: string, font: PDFFont) {
+  const normalized = text.normalize("NFKD");
+  let result = "";
+
+  for (const char of normalized) {
+    if (char === "\n") {
+      result += char;
+      continue;
+    }
+
+    if (canEncode(font, char)) {
+      result += char;
+      continue;
+    }
+
+    const replacement = PDF_REPLACEMENTS[char] ?? "";
+    for (const replacementChar of replacement) {
+      if (canEncode(font, replacementChar)) {
+        result += replacementChar;
+      }
+    }
+  }
+
+  return result;
+}
+
 function wrapText(text: string, maxWidth: number, font: PDFFont, fontSize: number) {
   const lines: string[] = [];
   const paragraphs = text.split("\n");
@@ -72,7 +122,7 @@ export async function createReceiptSummaryPdf(input: ReceiptPdfInput) {
     }
   };
 
-  page.drawText(input.title, {
+  page.drawText(sanitizeForPdf(input.title, fontBold), {
     x: margin,
     y,
     size: 18,
@@ -91,7 +141,7 @@ export async function createReceiptSummaryPdf(input: ReceiptPdfInput) {
 
   for (const meta of metaLines) {
     ensureSpace();
-    page.drawText(meta, {
+    page.drawText(sanitizeForPdf(meta, font), {
       x: margin,
       y,
       size: 11,
@@ -103,7 +153,12 @@ export async function createReceiptSummaryPdf(input: ReceiptPdfInput) {
 
   y -= 10;
 
-  const bodyLines = wrapText(sanitizeBody(input.bodyText), maxWidth, font, bodyFontSize);
+  const bodyLines = wrapText(
+    sanitizeForPdf(sanitizeBody(input.bodyText), font),
+    maxWidth,
+    font,
+    bodyFontSize,
+  );
   for (const line of bodyLines) {
     ensureSpace();
     page.drawText(line, {
