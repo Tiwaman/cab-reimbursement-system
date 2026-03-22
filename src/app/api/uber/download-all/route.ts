@@ -24,6 +24,13 @@ function cleanExpired() {
  * Body: { invoices: [{ pdfLink: string, date: string }] }
  */
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL === '1') {
+    return NextResponse.json(
+      { error: 'Uber combined PDF download is not supported on Vercel because it requires an interactive persistent browser session.' },
+      { status: 501 }
+    );
+  }
+
   cleanExpired();
 
   let body: { invoices: { pdfLink: string; date: string }[] };

@@ -9,8 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^143.0.4",
     "cheerio": "^1.2.0",
-    "chromium": "^3.0.3",
     "framer-motion": "^12.38.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^0.577.0",

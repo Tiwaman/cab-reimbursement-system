@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     .filter((invoice): invoice is InvoiceRecord & { tripId: string } => Boolean(invoice.tripId));
 
   const validRapidoInvoices = rapidoInvoices.filter((invoice) => invoice.messageId && invoice.attachmentId);
+  const isVercel = process.env.VERCEL === '1';
 
   if (validUberInvoices.length === 0 && validRapidoInvoices.length === 0) {
     return NextResponse.json({ error: 'No valid receipt sources found' }, { status: 400 });
@@ -75,7 +76,6 @@ export async function POST(request: NextRequest) {
     : '';
 
   const encoder = new TextEncoder();
-  const total = validUberInvoices.length + validRapidoInvoices.length;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -84,7 +84,18 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        if (validUberInvoices.length > 0) {
+        let effectiveUberInvoices = validUberInvoices;
+        if (isVercel && validUberInvoices.length > 0) {
+          effectiveUberInvoices = [];
+          send({
+            type: 'warning',
+            message: 'Skipping Uber receipts on Vercel. Uber combined PDF requires an interactive persistent browser session and is not supported in Vercel Functions.',
+          });
+        }
+
+        const total = effectiveUberInvoices.length + validRapidoInvoices.length;
+
+        if (effectiveUberInvoices.length > 0) {
           await ensureSession((status) => {
             send({ type: 'status', message: status });
           });
@@ -95,7 +106,7 @@ export async function POST(request: NextRequest) {
         let failCount = 0;
         let current = 0;
 
-        for (const invoice of validUberInvoices) {
+        for (const invoice of effectiveUberInvoices) {
           current += 1;
           send({
             type: 'progress',

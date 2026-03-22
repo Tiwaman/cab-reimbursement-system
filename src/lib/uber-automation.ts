@@ -1,23 +1,53 @@
 import type { BrowserContext, Page } from 'playwright-core';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 
 const PROFILE_DIR = path.join(os.homedir(), '.cab-reimbursement', 'uber-session');
 const UBER_TRIPS_URL = 'https://riders.uber.com/trips';
 const LOGIN_TIMEOUT = 120_000; // 2 minutes for user to log in manually
+const IS_VERCEL = process.env.VERCEL === '1';
 
 let activeContext: BrowserContext | null = null;
 let activePage: Page | null = null;
 
-/**
- * Dynamically import playwright-core and the chromium binary.
- * Using dynamic imports so the bundler does NOT try to resolve these
- * at build time — which would fail on Vercel (no Chromium binary available).
- */
+function findLocalChromeExecutable(): string {
+  const candidates = [
+    process.env.LOCAL_CHROME_EXECUTABLE,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ].filter(Boolean) as string[];
+
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error('No local Chrome/Chromium executable found. Set LOCAL_CHROME_EXECUTABLE to a browser binary path.');
+  }
+
+  return found;
+}
+
 async function getPlaywright() {
   const { chromium } = await import('playwright-core');
-  const chromium_pkg = await import('chromium');
-  return { chromium, executablePath: (chromium_pkg as any).default?.path || (chromium_pkg as any).path };
+  if (IS_VERCEL) {
+    const chromiumPkg = await import('@sparticuz/chromium');
+    return {
+      chromium,
+      executablePath: await chromiumPkg.default.executablePath(),
+      args: chromiumPkg.default.args,
+      headless: true,
+    };
+  }
+
+  return {
+    chromium,
+    executablePath: findLocalChromeExecutable(),
+    args: [] as string[],
+    headless: undefined as boolean | undefined,
+  };
 }
 
 /**
@@ -58,12 +88,13 @@ async function launchContext(headed: boolean): Promise<{ context: BrowserContext
     await closeSession();
   }
 
-  const { chromium, executablePath } = await getPlaywright();
+  const { chromium, executablePath, args, headless } = await getPlaywright();
 
   const context = await chromium.launchPersistentContext(PROFILE_DIR, {
     executablePath,
-    headless: !headed,
+    headless: headless ?? !headed,
     args: [
+      ...args,
       '--disable-blink-features=AutomationControlled',
       '--no-first-run',
       '--disable-default-apps',
@@ -104,6 +135,10 @@ async function isSessionValid(page: Page): Promise<boolean> {
 export async function ensureSession(
   onStatus: (status: string) => void
 ): Promise<void> {
+  if (IS_VERCEL) {
+    throw new Error('Uber receipt download is not supported on Vercel. It requires a persistent browser session and manual login.');
+  }
+
   onStatus('Checking saved Uber session...');
   const { page } = await launchContext(false);
 

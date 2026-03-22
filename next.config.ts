@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   },
   // Prevent webpack from bundling heavy native packages used server-side only.
   // playwright-core and chromium contain native binaries that cannot be bundled.
-  serverExternalPackages: ['playwright-core', 'chromium'],
+  serverExternalPackages: ['playwright-core', '@sparticuz/chromium'],
 };
 
 export default nextConfig;
