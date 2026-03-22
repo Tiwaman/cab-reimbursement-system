@@ -267,11 +267,79 @@
   box-shadow: 0 8px 24px rgba(52, 211, 153, 0.4);
 }
 
+/* ── Combined PDF Card ────────────────────── */
+
+.pdf-card {
+  overflow: hidden;
+}
+
+.pdf-card::after {
+  background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.06), transparent 40%);
+}
+
+.pdf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdf-header-icon {
+  width: 42px;
+  height: 42px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--l-accent, #818CF8);
+}
+
+.pdf-cta {
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
+  box-shadow:
+    0 10px 25px -5px rgba(99, 102, 241, 0.35),
+    0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.pdf-cta:hover:not(:disabled) {
+  box-shadow:
+    0 15px 35px -5px rgba(99, 102, 241, 0.5),
+    0 0 0 1.5px rgba(99, 102, 241, 0.3);
+}
+
+/* PDF Progress Bar */
+.pdf-progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.pdf-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #818CF8, #6366F1);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* PDF Download Result (indigo accent) */
+.download-result-pdf {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.download-icon-pdf {
+  background: var(--l-accent-strong, #6366F1);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+}
+
 @media (max-width: 640px) {
   .generate-card {
     padding: 24px 20px;
   }
-  
+
   .download-result {
     flex-direction: column;
     gap: 24px;

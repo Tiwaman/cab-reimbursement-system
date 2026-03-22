@@ -11,6 +11,8 @@ import {
   RiFileExcel2Line,
   RiSparkling2Line,
   RiDatabase2Line,
+  RiFilePdfLine,
+  RiMergeCellsHorizontal,
 } from 'react-icons/ri';
 import { TbReceipt2 } from 'react-icons/tb';
 import * as XLSX from 'xlsx';
@@ -37,6 +39,8 @@ interface Stage {
   status: StageStatus;
 }
 
+type PdfStage = 'idle' | 'connecting' | 'downloading' | 'merging' | 'done' | 'error';
+
 export default function GeneratePage() {
   const { data: session } = useSession();
   const [stages, setStages] = useState<Stage[]>([
@@ -62,6 +66,14 @@ export default function GeneratePage() {
   const [isDone, setIsDone] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
+  // PDF state
+  const [pdfStage, setPdfStage] = useState<PdfStage>('idle');
+  const [pdfLogs, setPdfLogs] = useState<string[]>([]);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
+  const [pdfToken, setPdfToken] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const pdfTerminalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const data = localStorage.getItem('selected_invoices');
     if (data) {
@@ -79,13 +91,25 @@ export default function GeneratePage() {
     }
   }, [logs]);
 
+  useEffect(() => {
+    if (pdfTerminalRef.current) {
+      pdfTerminalRef.current.scrollTop = pdfTerminalRef.current.scrollHeight;
+    }
+  }, [pdfLogs]);
+
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, msg]);
+  };
+
+  const addPdfLog = (msg: string) => {
+    setPdfLogs(prev => [...prev, msg]);
   };
 
   const updateStage = (id: string, status: StageStatus) => {
     setStages(prev => prev.map(s => s.id === id ? { ...s, status } : s));
   };
+
+  // ── Excel Generation ─────────────────────────────
 
   const startGeneration = async () => {
     if (invoices.length === 0) return;
@@ -142,7 +166,107 @@ export default function GeneratePage() {
     XLSX.writeFile(workbook, `Uber_Reimbursement_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`);
   };
 
+  // ── Combined PDF Generation ──────────────────────
+
+  const startPdfGeneration = async () => {
+    const validInvoices = invoices.filter(inv => inv.pdfLink);
+    if (validInvoices.length === 0) {
+      setPdfError('No valid receipt links found in selected invoices.');
+      return;
+    }
+
+    setPdfStage('connecting');
+    setPdfLogs([]);
+    setPdfError(null);
+    setPdfToken(null);
+    setPdfProgress({ current: 0, total: validInvoices.length });
+
+    try {
+      const response = await fetch('/api/uber/download-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoices: validInvoices.map(inv => ({
+            pdfLink: inv.pdfLink,
+            date: inv.date,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to start PDF generation');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response stream');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            switch (event.type) {
+              case 'status':
+                addPdfLog(event.message);
+                if (event.message === 'LOGIN_REQUIRED') {
+                  setPdfStage('connecting');
+                  addPdfLog('A browser window has opened. Please log in to Uber.');
+                }
+                if (event.message?.includes('session established') || event.message?.includes('session is active')) {
+                  setPdfStage('downloading');
+                }
+                break;
+              case 'progress':
+                setPdfStage('downloading');
+                setPdfProgress({ current: event.current, total: event.total });
+                addPdfLog(event.message);
+                break;
+              case 'warning':
+                addPdfLog(`Warning: ${event.message}`);
+                break;
+              case 'complete':
+                setPdfStage('done');
+                setPdfToken(event.token);
+                addPdfLog(event.message);
+                break;
+              case 'error':
+                setPdfStage('error');
+                setPdfError(event.message);
+                addPdfLog(`Error: ${event.message}`);
+                break;
+            }
+          } catch {
+            // skip malformed SSE lines
+          }
+        }
+      }
+    } catch (err) {
+      setPdfStage('error');
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setPdfError(msg);
+      addPdfLog(`Error: ${msg}`);
+    }
+  };
+
+  const downloadPdf = () => {
+    if (!pdfToken) return;
+    window.open(`/api/uber/download-all?token=${pdfToken}`, '_blank');
+  };
+
   const allDone = stages.every(s => s.status === 'done');
+  const pdfBusy = pdfStage === 'connecting' || pdfStage === 'downloading' || pdfStage === 'merging';
 
   return (
     <div className="generate-shell">
@@ -199,9 +323,9 @@ export default function GeneratePage() {
             </p>
           </div>
 
-          {/* Main Processing Card */}
+          {/* ── Excel Report Card ──────────────────────── */}
           <div className="generate-card">
-            
+
             {/* Stages Timeline */}
             <div className="stage-list">
               {stages.map((stage) => {
@@ -257,7 +381,7 @@ export default function GeneratePage() {
               </button>
             )}
 
-            {/* Result Area */}
+            {/* Excel Result */}
             <AnimatePresence>
               {isDone && (
                 <motion.div
@@ -290,6 +414,123 @@ export default function GeneratePage() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* ── Combined PDF Card ────────────────────────── */}
+          <AnimatePresence>
+            {isDone && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="generate-card pdf-card"
+                style={{ marginTop: 24 }}
+              >
+                <div className="pdf-card-header">
+                  <div className="flex items-center gap-3">
+                    <div className="pdf-header-icon">
+                      <RiFilePdfLine size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontWeight: 700, color: '#fff', fontSize: '1rem', marginBottom: 2 }}>
+                        Combined PDF
+                      </h3>
+                      <p style={{ color: 'var(--l-text-3, #71717A)', fontSize: '0.8rem' }}>
+                        All receipts merged into a single document
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PDF Terminal (visible when generating) */}
+                {pdfStage !== 'idle' && (
+                  <div className="gen-terminal" ref={pdfTerminalRef} style={{ marginTop: 20 }}>
+                    {pdfLogs.map((log, i) => (
+                      <div key={i} className="terminal-row">
+                        <span className="terminal-bullet" style={{ color: '#818CF8' }}>›</span>
+                        <span>{log}</span>
+                      </div>
+                    ))}
+                    {pdfBusy && (
+                      <div className="terminal-row">
+                        <span className="terminal-bullet" style={{ color: '#818CF8' }}>›</span>
+                        <RiLoader4Line size={14} className="spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Progress Bar */}
+                {pdfStage === 'downloading' && pdfProgress.total > 0 && (
+                  <div className="pdf-progress">
+                    <div
+                      className="pdf-progress-fill"
+                      style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* CTA / Result */}
+                {pdfStage === 'idle' && (
+                  <button
+                    onClick={startPdfGeneration}
+                    className="gen-cta pdf-cta"
+                    style={{ marginTop: 20 }}
+                    disabled={invoices.length === 0}
+                  >
+                    <RiMergeCellsHorizontal size={20} /> Download Combined PDF
+                  </button>
+                )}
+
+                {pdfStage === 'error' && (
+                  <div style={{ marginTop: 16 }}>
+                    <p style={{ color: '#F87171', fontSize: '0.85rem', marginBottom: 12 }}>
+                      {pdfError}
+                    </p>
+                    <button
+                      onClick={() => { setPdfStage('idle'); setPdfLogs([]); setPdfError(null); }}
+                      className="gen-cta pdf-cta"
+                    >
+                      <RiMergeCellsHorizontal size={20} /> Retry
+                    </button>
+                  </div>
+                )}
+
+                {/* PDF Download Result */}
+                <AnimatePresence>
+                  {pdfStage === 'done' && pdfToken && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="download-result download-result-pdf"
+                      style={{ marginTop: 20 }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="download-icon download-icon-pdf">
+                          <RiFilePdfLine size={22} />
+                        </div>
+                        <div>
+                          <h4 style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem', marginBottom: 2 }}>
+                            Combined_Receipts.pdf
+                          </h4>
+                          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>
+                            {pdfProgress.current} receipts merged
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={downloadPdf}
+                        className="btn-dashboard btn-primary-dark"
+                        style={{ background: '#6366F1', padding: '10px 22px', height: 'auto', borderRadius: '12px', fontSize: '0.9rem' }}
+                      >
+                        <RiDownloadLine size={16} /> Download
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

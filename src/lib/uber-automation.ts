@@ -1,79 +1,158 @@
-import { chromium, Page } from 'playwright-core';
+import { chromium, BrowserContext, Page } from 'playwright-core';
 import chromium_pkg from 'chromium';
+import path from 'path';
+import os from 'os';
 
-let activeBrowser: any = null;
+const PROFILE_DIR = path.join(os.homedir(), '.cab-reimbursement', 'uber-session');
+const UBER_TRIPS_URL = 'https://riders.uber.com/trips';
+const LOGIN_TIMEOUT = 120_000; // 2 minutes for user to log in manually
+
+let activeContext: BrowserContext | null = null;
 let activePage: Page | null = null;
-let otpPromiseResolver: ((otp: string) => void) | null = null;
 
-export async function startUberSession(onStatus: (status: string) => void) {
-  if (activeBrowser) return { status: 'Already running' };
+/**
+ * Extract Uber trip UUID from a pdfLink URL.
+ * e.g. "https://riders.uber.com/trips/abc-123-def/receipt" → "abc-123-def"
+ */
+export function extractTripId(pdfLink: string): string | null {
+  const match = pdfLink.match(/trips\/([a-f0-9-]+)/i);
+  return match ? match[1] : null;
+}
 
-  onStatus('Initializing secure browser session...');
-  
+/**
+ * Get the current session status.
+ */
+export function getSessionStatus(): 'idle' | 'ready' {
+  return activeContext && activePage ? 'ready' : 'idle';
+}
+
+/**
+ * Close the active browser session.
+ */
+export async function closeSession() {
   try {
-    const browser = await chromium.launch({
-      executablePath: (chromium_pkg as any).path,
-      headless: true, // Run in background
-    });
-    activeBrowser = browser;
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    activePage = page;
+    await activeContext?.close();
+  } catch {
+    // ignore close errors
+  }
+  activeContext = null;
+  activePage = null;
+}
 
-    onStatus('Navigating to Uber Trips...');
-    await page.goto('https://riders.uber.com/trips');
+/**
+ * Launch a persistent browser context using a saved profile.
+ * If `headed` is true, the browser window is visible (for manual login).
+ */
+async function launchContext(headed: boolean): Promise<{ context: BrowserContext; page: Page }> {
+  if (activeContext) {
+    await closeSession();
+  }
 
-    // Handle Login
-    onStatus('Authenticating with Uber...');
-    await page.fill('input[name="answer"]', process.env.UBER_EMAIL!);
-    await page.click('button[type="submit"]');
+  const context = await chromium.launchPersistentContext(PROFILE_DIR, {
+    executablePath: (chromium_pkg as any).path,
+    headless: !headed,
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--no-first-run',
+      '--disable-default-apps',
+    ],
+    viewport: { width: 1280, height: 800 },
+  });
 
-    // Wait for password or OTP
-    await page.waitForTimeout(3000);
-    
-    if (await page.isVisible('input[name="password"]')) {
-      onStatus('Entering password...');
-      await page.fill('input[name="password"]', process.env.UBER_PASSWORD!);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(3000);
+  const page = context.pages()[0] || await context.newPage();
+  activeContext = context;
+  activePage = page;
+
+  return { context, page };
+}
+
+/**
+ * Check if the saved session is still valid (Uber cookies not expired).
+ * Returns true if we can access Uber trips without hitting a login page.
+ */
+async function isSessionValid(page: Page): Promise<boolean> {
+  try {
+    await page.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+    // If we land on a page with trip data or the trips URL, session is valid
+    const url = page.url();
+    // Login pages redirect to auth.uber.com or contain /login
+    if (url.includes('auth.uber.com') || url.includes('/login')) {
+      return false;
     }
-
-    // Check for OTP
-    if (await page.isVisible('input[name="otp"]')) {
-      onStatus('OTP_REQUIRED');
-      const otp = await new Promise<string>((resolve) => {
-        otpPromiseResolver = resolve;
-      });
-      onStatus(`Verifying OTP: ${otp}...`);
-      await page.fill('input[name="otp"]', otp);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(5000);
-    }
-
-    onStatus('Uber session established.');
-    return { status: 'Ready' };
-  } catch (err: any) {
-    onStatus(`Error: ${err.message}`);
-    await activeBrowser?.close();
-    activeBrowser = null;
-    throw err;
+    // Check for trip content or the trips page itself
+    return url.includes('riders.uber.com');
+  } catch {
+    return false;
   }
 }
 
-export async function downloadReceipt(tripId: string) {
-  if (!activePage) throw new Error('No active session');
+/**
+ * Ensure an active, authenticated Uber session exists.
+ * - First tries headless with the saved profile (instant if session is valid).
+ * - If session is expired, launches a VISIBLE browser for the user to log in manually.
+ * - Returns once authenticated.
+ */
+export async function ensureSession(
+  onStatus: (status: string) => void
+): Promise<void> {
+  // Try headless first with saved profile
+  onStatus('Checking saved Uber session...');
+  const { page } = await launchContext(false);
+
+  if (await isSessionValid(page)) {
+    onStatus('Uber session is active.');
+    return;
+  }
+
+  // Session expired — close headless and relaunch headed for manual login
+  await closeSession();
+  onStatus('Session expired. Opening browser for Uber login...');
+  onStatus('LOGIN_REQUIRED');
+
+  const { page: headedPage } = await launchContext(true);
+  await headedPage.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+
+  // Wait for the user to log in manually — poll until we're on the trips page
+  onStatus('Waiting for you to log in to Uber in the browser window...');
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < LOGIN_TIMEOUT) {
+    await headedPage.waitForTimeout(2000);
+    const currentUrl = headedPage.url();
+    if (currentUrl.includes('riders.uber.com') && !currentUrl.includes('auth.uber.com') && !currentUrl.includes('/login')) {
+      // Logged in successfully
+      onStatus('Uber login successful. Closing browser window...');
+      await closeSession();
+
+      // Relaunch headless for actual work
+      const { page: freshPage } = await launchContext(false);
+      await freshPage.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      onStatus('Uber session established.');
+      return;
+    }
+  }
+
+  await closeSession();
+  throw new Error('Uber login timed out. Please try again.');
+}
+
+/**
+ * Download a single receipt as PDF using the active Playwright session.
+ */
+export async function downloadReceipt(tripId: string): Promise<Buffer> {
+  if (!activePage) throw new Error('No active Uber session');
+
   const receiptUrl = `https://riders.uber.com/trips/${tripId}/receipt`;
-  await activePage.goto(receiptUrl);
-  // Download logic...
-  const pdfBuffer = await activePage.pdf({ format: 'A4' });
-  return pdfBuffer;
-}
+  await activePage.goto(receiptUrl, { waitUntil: 'networkidle', timeout: 30_000 });
 
-export function provideOTP(otp: string) {
-  if (otpPromiseResolver) {
-    otpPromiseResolver(otp);
-    otpPromiseResolver = null;
-    return true;
-  }
-  return false;
+  // Wait a moment for the receipt to fully render
+  await activePage.waitForTimeout(1500);
+
+  const pdfBuffer = await activePage.pdf({
+    format: 'A4',
+    printBackground: true,
+    margin: { top: '0.5in', bottom: '0.5in', left: '0.5in', right: '0.5in' },
+  });
+
+  return Buffer.from(pdfBuffer);
 }
