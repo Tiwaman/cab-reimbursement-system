@@ -148,16 +148,6 @@ export default function Dashboard() {
 
         {/* Page Header */}
         <div style={{ marginBottom: 40 }}>
-          <div className="flex items-center gap-3" style={{ marginBottom: 12 }}>
-            <span className="badge-dark badge-dark-accent">
-              <RiReceiptLine size={13} /> Invoice Vault
-            </span>
-            {invoices.length > 0 && (
-              <span className="badge-dark">
-                {invoices.length} trips
-              </span>
-            )}
-          </div>
           <h1 className="dashboard-title">
             Your expense receipts
           </h1>
@@ -168,17 +158,9 @@ export default function Dashboard() {
 
         {/* ── Filter & Sync Panel ──────────────────────── */}
         <div className="dashboard-card" style={{ marginBottom: 32 }}>
-          <div className="flex items-center gap-3" style={{ marginBottom: 24 }}>
-            <RiFilterLine size={18} color="var(--l-accent, #818CF8)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--l-text-2, #A1A1AA)' }}>
-              Date Range
-            </span>
-          </div>
-
           <div className="flex items-center gap-4 flex-wrap mobile-col">
             {/* Start Date */}
             <div style={{ flex: 1, minWidth: 180 }}>
-              <label className="field-label">From</label>
               <div className="field-wrap">
                 <RiCalendarLine size={18} />
                 <input
@@ -190,11 +172,10 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mobile-hide" style={{ paddingTop: 28, color: 'var(--l-text-3, #71717A)', fontWeight: 500 }}>→</div>
+            <div className="mobile-hide" style={{ color: 'var(--l-text-3, #71717A)', fontWeight: 500 }}>→</div>
 
             {/* End Date */}
             <div style={{ flex: 1, minWidth: 180 }}>
-              <label className="field-label">To</label>
               <div className="field-wrap">
                 <RiCalendarLine size={18} />
                 <input
@@ -207,7 +188,7 @@ export default function Dashboard() {
             </div>
 
             {/* Sync Button */}
-            <div style={{ paddingTop: 28, flex: '0 0 auto', width: '100%', maxWidth: 280 }} className="mobile-full">
+            <div style={{ flex: '0 0 auto', width: '100%', maxWidth: 280 }} className="mobile-full">
               <button
                 onClick={fetchInvoices}
                 disabled={loading}
@@ -242,7 +223,45 @@ export default function Dashboard() {
 
         {/* ── Invoices Table ───────────────────────────── */}
         <div className="data-table-wrapper">
-          {invoices.length === 0 && !loading ? (
+          {loading ? (
+            /* Skeleton Loader */
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 64, paddingLeft: 24 }}></th>
+                  <th>Date</th>
+                  <th>Route</th>
+                  <th>Platform</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th>
+                  <th style={{ textAlign: 'right', paddingRight: 24 }}>Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i}>
+                    <td style={{ paddingLeft: 24, width: 64 }}>
+                      <div className="skeleton skeleton-checkbox" />
+                    </td>
+                    <td>
+                      <div className="skeleton skeleton-text" style={{ width: '80px' }} />
+                    </td>
+                    <td>
+                      <div className="skeleton skeleton-text" style={{ width: '200px' }} />
+                    </td>
+                    <td>
+                      <div className="skeleton skeleton-badge" />
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="skeleton skeleton-text" style={{ width: '60px', marginLeft: 'auto' }} />
+                    </td>
+                    <td style={{ textAlign: 'right', paddingRight: 24 }}>
+                      <div className="skeleton skeleton-badge" style={{ marginLeft: 'auto' }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : invoices.length === 0 ? (
             /* Empty State */
             <div style={{ padding: '80px 32px', textAlign: 'center' }}>
               <div style={{
@@ -363,6 +382,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
 
       {/* ── Floating Action Bar ──────────────────────────── */}
       <AnimatePresence>

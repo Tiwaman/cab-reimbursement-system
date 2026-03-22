@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RiLoader4Line,
@@ -12,6 +12,8 @@ import {
   RiDatabase2Line,
 } from 'react-icons/ri';
 import * as XLSX from 'xlsx';
+
+import './generate.css';
 
 interface Invoice {
   id: string;
@@ -37,15 +39,15 @@ export default function GeneratePage() {
   const [stages, setStages] = useState<Stage[]>([
     {
       id: 'data',
-      label: 'Synthesising selection',
-      description: 'Reading invoice records from local storage',
+      label: 'Synthesizing selection',
+      description: 'Reading invoice records from vault...',
       icon: RiDatabase2Line,
       status: 'pending',
     },
     {
       id: 'excel',
       label: 'Building Excel report',
-      description: 'Formatting with INR totals and trip metadata',
+      description: 'Formatting metadata & INR totals...',
       icon: RiFileExcel2Line,
       status: 'pending',
     },
@@ -55,20 +57,27 @@ export default function GeneratePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const data = localStorage.getItem('selected_invoices');
     if (data) {
       const parsed = JSON.parse(data);
       setInvoices(parsed);
-      setLogs([`✓ ${parsed.length} trip${parsed.length !== 1 ? 's' : ''} ready to export`]);
+      setLogs([`Ready to export ${parsed.length} trip records.`]);
     } else {
-      setLogs(['✗ No data found — please return to dashboard']);
+      setLogs(['No data found. Please return to dashboard.']);
     }
   }, []);
 
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [logs]);
+
   const addLog = (msg: string) => {
-    setLogs(prev => [...prev.slice(-12), msg]);
+    setLogs(prev => [...prev, msg]);
   };
 
   const updateStage = (id: string, status: StageStatus) => {
@@ -78,29 +87,34 @@ export default function GeneratePage() {
   const startGeneration = async () => {
     if (invoices.length === 0) return;
     setIsGenerating(true);
+    setIsDone(false);
     setLogs([]);
 
     try {
       updateStage('data', 'running');
-      addLog(`→ Analysing ${invoices.length} selected records…`);
-      await new Promise(r => setTimeout(r, 900));
-      addLog(`→ Validated trip dates and amounts`);
+      addLog(`Initializing extraction engine...`);
+      await new Promise(r => setTimeout(r, 600));
+      addLog(`Analyzing ${invoices.length} selected records...`);
+      await new Promise(r => setTimeout(r, 800));
+      addLog(`Validating trip metadata and fares...`);
       await new Promise(r => setTimeout(r, 500));
       updateStage('data', 'done');
 
       updateStage('excel', 'running');
-      addLog(`→ Building financial data structure…`);
+      addLog(`Constructing financial data structure...`);
       await new Promise(r => setTimeout(r, 1000));
-      addLog(`→ Applying INR currency format…`);
-      await new Promise(r => setTimeout(r, 600));
-      addLog(`→ Generating sheet columns…`);
-      await new Promise(r => setTimeout(r, 400));
+      addLog(`Applying INR currency formatting...`);
+      await new Promise(r => setTimeout(r, 700));
+      addLog(`Generating worksheet columns...`);
+      await new Promise(r => setTimeout(r, 500));
       updateStage('excel', 'done');
 
-      addLog(`✓ Report ready — ${invoices.length} trips, ₹${invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)} total`);
+      const total = invoices.reduce((a, i) => a + i.amount, 0).toFixed(2);
+      addLog(`Report generation successful.`);
+      addLog(`Summary: ${invoices.length} trips | Total: ₹${total}`);
       setIsDone(true);
     } catch (err: unknown) {
-      addLog(`✗ ${err instanceof Error ? err.message : 'Unknown error'}`);
+      addLog(`Critical error: ${err instanceof Error ? err.message : 'Unknown failure'}`);
       updateStage('data', 'error');
     } finally {
       setIsGenerating(false);
@@ -128,50 +142,44 @@ export default function GeneratePage() {
   const allDone = stages.every(s => s.status === 'done');
 
   return (
-    <div className="page-shell">
+    <div className="generate-shell">
 
       {/* ── Nav ───────────────────────────────────────────── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(249, 247, 243, 0.92)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid var(--border)',
-      }}>
+      <nav className="generate-nav">
         <div className="container" style={{ paddingTop: 0, paddingBottom: 0 }}>
-          <div className="flex items-center justify-between" style={{ height: '60px' }}>
+          <div className="flex items-center justify-between" style={{ height: '64px' }}>
             <button
               onClick={() => window.location.href = '/dashboard'}
-              className="btn btn-ghost btn-sm"
+              className="btn-dashboard btn-ghost-dark"
+              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
             >
-              <RiArrowLeftLine size={15} /> Back to Dashboard
+              <RiArrowLeftLine size={16} /> Back
             </button>
-            <span className="badge badge-orange">
-              <RiSparkling2Line size={11} /> Report Engine
+            <span className="badge-dark badge-dark-accent">
+              <RiSparkling2Line size={14} /> Report Engine
             </span>
           </div>
         </div>
       </nav>
 
       {/* ── Content ─────────────────────────────────────────── */}
-      <div className="container" style={{ paddingTop: 56, paddingBottom: 80 }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div className="container" style={{ paddingTop: 64, paddingBottom: 100 }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
           {/* Page Title */}
-          <div style={{ marginBottom: 40, textAlign: 'center' }}>
-            <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', marginBottom: 12 }}>
-              Generate report
+          <div style={{ marginBottom: 48, textAlign: 'center' }}>
+            <h1 className="dashboard-title" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.2rem)' }}>
+              Generate Report
             </h1>
-            <p style={{ color: 'var(--ink-2)', fontSize: '0.95rem' }}>
-              Compiling{' '}
-              <strong style={{ color: 'var(--ink)' }}>{invoices.length} {invoices.length === 1 ? 'trip' : 'trips'}</strong>{' '}
-              into your expense spreadsheet.
+            <p className="dashboard-sub" style={{ fontSize: '1.05rem' }}>
+              Compiling <span style={{ color: 'var(--l-text, #FAFAFA)', fontWeight: 600 }}>{invoices.length} {invoices.length === 1 ? 'trip' : 'trips'}</span> into a professional expense summary.
             </p>
           </div>
 
           {/* ── Stages Card ─────────────────────────────────── */}
-          <div className="card card-padded" style={{ marginBottom: 20 }}>
+          <div className="stage-card">
 
-            {stages.map((stage, idx) => {
+            {stages.map((stage) => {
               const Icon = stage.icon;
               const isPending = stage.status === 'pending';
               const isRunning = stage.status === 'running';
@@ -179,128 +187,93 @@ export default function GeneratePage() {
 
               return (
                 <div key={stage.id} className="stage-item">
-                  {/* Step icon */}
-                  <div className={`stage-icon ${
-                    isDoneStage ? 'stage-icon-done'
-                    : isRunning ? 'stage-icon-running'
-                    : 'stage-icon-pending'
-                  }`}>
+                  <div className={`stage-icon-box ${isRunning ? 'running' : isDoneStage ? 'done' : ''}`}>
                     {isDoneStage ? (
-                      <RiCheckLine size={20} />
+                      <RiCheckLine size={22} />
                     ) : isRunning ? (
-                      <RiLoader4Line size={20} className="spin" />
+                      <RiLoader4Line size={22} className="spin" />
                     ) : (
-                      <Icon size={20} />
+                      <Icon size={22} />
                     )}
                   </div>
 
-                  {/* Stage text */}
-                  <div className="flex-1">
-                    <div style={{
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      color: isPending ? 'var(--ink-3)' : 'var(--ink)',
-                      marginBottom: 2,
-                    }}>
-                      {stage.label}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-3)' }}>
-                      {isRunning ? (
-                        <span style={{ color: 'var(--orange)', fontWeight: 500 }}>Processing…</span>
-                      ) : isDoneStage ? (
-                        <span style={{ color: 'var(--green)', fontWeight: 500 }}>Complete</span>
-                      ) : (
-                        stage.description
-                      )}
-                    </div>
+                  <div className={`stage-content ${isPending ? 'pending' : ''}`} style={{ flex: 1 }}>
+                    <h3>{stage.label}</h3>
+                    <p>{stage.description}</p>
                     {isRunning && (
-                      <div className="progress-bar" style={{ marginTop: 8, maxWidth: 200 }}>
-                        <div className="progress-bar-fill" />
+                      <div className="progress-container">
+                        <motion.div 
+                          className="progress-fill"
+                          initial={{ width: '0%' }}
+                          animate={{ width: '100%' }}
+                          transition={{ duration: 2, ease: "easeInOut" }}
+                        />
                       </div>
                     )}
                   </div>
-
-                  {/* Step number badge */}
-                  {isPending && (
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ink-4)' }}>
-                      {idx + 1}
-                    </span>
-                  )}
                 </div>
               );
             })}
 
-            {/* Generate Button */}
-            {!isGenerating && !allDone && (
-              <div style={{ marginTop: 28 }}>
+            {/* Terminal Log */}
+            <div className="terminal-container" ref={terminalRef}>
+              {logs.map((log, i) => (
+                <div key={i} className="terminal-line">
+                  <span className="terminal-prefix">›</span>
+                  <span>{log}</span>
+                </div>
+              ))}
+              {isGenerating && (
+                <div className="terminal-line">
+                  <span className="terminal-prefix">›</span>
+                  <RiLoader4Line size={14} className="spin" />
+                </div>
+              )}
+            </div>
+
+            {/* Action Area */}
+            <div style={{ marginTop: 40 }}>
+              {!isGenerating && !allDone && (
                 <button
                   onClick={startGeneration}
                   disabled={invoices.length === 0}
-                  className="btn btn-orange w-full"
-                  style={{ width: '100%', height: 52, fontSize: '1rem', borderRadius: 14 }}
+                  className="btn-dashboard btn-primary-dark w-full"
+                  style={{ width: '100%', height: 56, fontSize: '1.1rem' }}
                 >
-                  <RiSparkling2Line size={18} /> Generate Excel Report
+                  <RiSparkling2Line size={20} /> Generate Summary
                 </button>
-              </div>
-            )}
-
-            {/* Terminal Log */}
-            {logs.length > 0 && (
-              <div className="log-terminal" style={{ marginTop: 24 }}>
-                {logs.map((log, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10 }}>
-                    <span className="log-line-prefix">$</span>
-                    <span>{log}</span>
-                  </div>
-                ))}
-                {isGenerating && (
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <span className="log-line-prefix">$</span>
-                    <span style={{ opacity: 0.5 }}>
-                      <RiLoader4Line size={14} className="spin" style={{ display: 'inline', verticalAlign: 'middle' }} />
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* ── Download Card ────────────────────────────────── */}
           <AnimatePresence>
             {isDone && (
               <motion.div
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="download-card"
+                className="result-card"
               >
-                <div className="flex items-center gap-4">
-                  <div style={{
-                    width: 52, height: 52,
-                    background: 'var(--green-light)',
-                    borderRadius: 14,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '1px solid #B7E4CE',
-                    flexShrink: 0,
-                  }}>
-                    <RiFileExcel2Line size={26} color="var(--green)" />
+                <div className="result-info">
+                  <div className="excel-icon-box">
+                    <RiFileExcel2Line size={28} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: '0.95rem' }}>
-                      Reimbursement Summary
-                    </div>
-                    <div style={{ color: 'var(--ink-3)', fontSize: '0.78rem', marginTop: 2 }}>
-                      XLSX &nbsp;·&nbsp; {invoices.length} trips &nbsp;·&nbsp; ₹{invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)}
-                    </div>
+                    <h4 style={{ fontWeight: 700, color: 'var(--l-text, #FAFAFA)', fontSize: '1rem', marginBottom: 4 }}>
+                      Reimbursement_Report.xlsx
+                    </h4>
+                    <p style={{ color: 'var(--l-text-3, #71717A)', fontSize: '0.85rem' }}>
+                      {invoices.length} trips &nbsp;·&nbsp; ₹{invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)} total
+                    </p>
                   </div>
                 </div>
 
                 <button
                   onClick={downloadExcel}
-                  className="btn btn-orange"
-                  style={{ flexShrink: 0 }}
+                  className="btn-dashboard btn-primary-dark"
+                  style={{ background: '#10B981', boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)' }}
                 >
-                  <RiDownloadLine size={17} /> Download
+                  <RiDownloadLine size={18} /> Download
                 </button>
               </motion.div>
             )}
