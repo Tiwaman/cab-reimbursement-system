@@ -161,7 +161,7 @@ export default function GeneratePage() {
   const startPdfGeneration = async () => {
     const validInvoices = invoices.filter(inv =>
       inv.downloadKind === 'uber-trip'
-        ? Boolean(inv.pdfLink)
+        ? Boolean(inv.messageId || inv.pdfLink)
         : Boolean(inv.messageId && inv.attachmentId)
     );
     if (validInvoices.length === 0) {
@@ -256,7 +256,28 @@ export default function GeneratePage() {
 
   const downloadPdf = () => {
     if (!pdfToken) return;
-    window.open(`/api/receipts/download-all?token=${pdfToken}`, '_blank');
+    void (async () => {
+      const response = await fetch(`/api/receipts/download-all?token=${pdfToken}`);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to download PDF' }));
+        throw new Error(err.error || 'Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `Combined_Receipts_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    })().catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Failed to download PDF';
+      setPdfError(msg);
+      setPdfStage('error');
+      addPdfLog(`Error: ${msg}`);
+    });
   };
 
   const allDone = stages.every(s => s.status === 'done');

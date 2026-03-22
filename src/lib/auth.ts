@@ -1,5 +1,19 @@
-import GoogleProvider from 'next-auth/providers/google';
-import type { NextAuthOptions } from 'next-auth';
+import GoogleProvider from "next-auth/providers/google";
+import type { NextAuthOptions } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+
+type AppToken = JWT & {
+  accessToken?: string;
+  accessTokenExpires?: number;
+  refreshToken?: string;
+  error?: string;
+};
+
+type RefreshTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  refresh_token?: string;
+};
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -8,16 +22,19 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
+          scope:
+            "openid email profile https://www.googleapis.com/auth/gmail.readonly",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
         },
       },
     }),
   ],
   callbacks: {
     async jwt({ token, account, user }) {
+      const appToken = token as AppToken;
+
       if (account && user) {
         return {
           accessToken: account.access_token,
@@ -28,7 +45,10 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Return previous token if the access token has not expired yet
-      if (Date.now() < (token as any).accessTokenExpires) {
+      if (
+        typeof appToken.accessTokenExpires === "number" &&
+        Date.now() < appToken.accessTokenExpires
+      ) {
         return token;
       }
 
@@ -40,20 +60,26 @@ export const authOptions: NextAuthOptions = {
             client_id: process.env.GOOGLE_CLIENT_ID!,
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
             grant_type: "refresh_token",
-            refresh_token: (token as any).refreshToken,
+            refresh_token: appToken.refreshToken ?? "",
           }),
           method: "POST",
         });
 
-        const tokens = await response.json();
+        const tokens = (await response.json()) as RefreshTokenResponse;
 
-        if (!response.ok) throw tokens;
+        if (
+          !response.ok ||
+          !tokens.access_token ||
+          typeof tokens.expires_in !== "number"
+        ) {
+          throw new Error("Failed to refresh access token");
+        }
 
         return {
           ...token,
           accessToken: tokens.access_token,
           accessTokenExpires: Date.now() + tokens.expires_in * 1000,
-          refreshToken: tokens.refresh_token ?? (token as any).refreshToken, // Fallback to old refresh token
+          refreshToken: tokens.refresh_token ?? appToken.refreshToken, // Fallback to old refresh token
         };
       } catch (error) {
         console.error("RefreshAccessTokenError", error);
@@ -61,12 +87,16 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async session({ session, token }) {
-      (session as any).accessToken = token.accessToken;
+      const appToken = token as AppToken;
+      const sessionWithAccessToken = session as typeof session & {
+        accessToken?: string;
+      };
+      sessionWithAccessToken.accessToken = appToken.accessToken;
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: '/',
+    signIn: "/",
   },
 };

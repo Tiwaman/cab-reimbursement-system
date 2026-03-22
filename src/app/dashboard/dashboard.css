@@ -148,7 +148,7 @@
 
 /* Data Table */
 .data-table-wrapper {
-  overflow-x: auto;
+  overflow-x: hidden;
   border-radius: 16px;
   border: 1px solid var(--l-border, rgba(255, 255, 255, 0.06));
   background: var(--l-bg-elevated, #18181B);
@@ -158,6 +158,7 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  table-layout: fixed;
 }
 
 .data-table th {
@@ -176,6 +177,27 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.02);
   vertical-align: middle;
   font-family: 'Nunito Sans', sans-serif;
+}
+
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  width: 128px;
+  white-space: nowrap;
+}
+
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) {
+  width: 112px;
+}
+
+.data-table th:nth-child(5),
+.data-table td:nth-child(5) {
+  width: 120px;
+}
+
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) {
+  width: 124px;
 }
 
 .data-table tr:hover td {
@@ -334,11 +356,17 @@
   font-size: 0.95rem;
 }
 
-.truncate {
+.truncate,
+.route-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  display: block;
+}
+
+.table-date {
+  white-space: nowrap;
 }
 
 .route-line {

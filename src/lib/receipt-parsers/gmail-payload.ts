@@ -10,18 +10,18 @@ export interface GmailBodyContent {
 }
 
 interface GmailPayloadPart {
-  mimeType?: string;
-  filename?: string;
+  mimeType?: string | null;
+  filename?: string | null;
   body?: {
-    data?: string;
-    attachmentId?: string;
+    data?: string | null;
+    attachmentId?: string | null;
   };
-  parts?: GmailPayloadPart[];
+  parts?: GmailPayloadPart[] | null;
 }
 
 function decodeBase64(data?: string): string {
-  if (!data) return '';
-  return Buffer.from(data, 'base64').toString();
+  if (!data) return "";
+  return Buffer.from(data, "base64").toString();
 }
 
 function walkParts(
@@ -31,18 +31,18 @@ function walkParts(
 ) {
   if (!part) return;
 
-  if (part.mimeType === 'text/plain' && part.body?.data && !body.text) {
+  if (part.mimeType === "text/plain" && part.body?.data && !body.text) {
     body.text = decodeBase64(part.body.data);
   }
 
-  if (part.mimeType === 'text/html' && part.body?.data && !body.html) {
+  if (part.mimeType === "text/html" && part.body?.data && !body.html) {
     body.html = decodeBase64(part.body.data);
   }
 
   if (part.filename) {
     attachments.push({
       filename: part.filename,
-      mimeType: part.mimeType || 'application/octet-stream',
+      mimeType: part.mimeType || "application/octet-stream",
       attachmentId: part.body?.attachmentId,
     });
   }
@@ -54,7 +54,9 @@ function walkParts(
   }
 }
 
-export function extractBodyAndAttachments(payload: GmailPayloadPart | undefined): {
+export function extractBodyAndAttachments(
+  payload: GmailPayloadPart | undefined,
+): {
   body: GmailBodyContent;
   attachments: GmailAttachmentMeta[];
 } {
@@ -62,9 +64,9 @@ export function extractBodyAndAttachments(payload: GmailPayloadPart | undefined)
   const attachments: GmailAttachmentMeta[] = [];
 
   if (payload?.body?.data) {
-    if (payload.mimeType === 'text/plain') {
+    if (payload.mimeType === "text/plain") {
       body.text = decodeBase64(payload.body.data);
-    } else if (payload.mimeType === 'text/html') {
+    } else if (payload.mimeType === "text/html") {
       body.html = decodeBase64(payload.body.data);
     }
   }
@@ -74,6 +76,11 @@ export function extractBodyAndAttachments(payload: GmailPayloadPart | undefined)
   return { body, attachments };
 }
 
-export function findPdfAttachment(attachments: GmailAttachmentMeta[]): GmailAttachmentMeta | undefined {
-  return attachments.find((attachment) => attachment.mimeType === 'application/pdf' && attachment.attachmentId);
+export function findPdfAttachment(
+  attachments: GmailAttachmentMeta[],
+): GmailAttachmentMeta | undefined {
+  return attachments.find(
+    (attachment) =>
+      attachment.mimeType === "application/pdf" && attachment.attachmentId,
+  );
 }

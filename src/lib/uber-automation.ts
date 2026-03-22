@@ -1,53 +1,17 @@
 import type { BrowserContext, Page } from 'playwright-core';
 import path from 'path';
 import os from 'os';
-import fs from 'fs';
+import { getBrowserLaunchConfig, isVercelRuntime } from '@/lib/browser-runtime';
 
 const PROFILE_DIR = path.join(os.homedir(), '.cab-reimbursement', 'uber-session');
 const UBER_TRIPS_URL = 'https://riders.uber.com/trips';
 const LOGIN_TIMEOUT = 120_000; // 2 minutes for user to log in manually
-const IS_VERCEL = process.env.VERCEL === '1';
 
 let activeContext: BrowserContext | null = null;
 let activePage: Page | null = null;
 
-function findLocalChromeExecutable(): string {
-  const candidates = [
-    process.env.LOCAL_CHROME_EXECUTABLE,
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/chromium',
-  ].filter(Boolean) as string[];
-
-  const found = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!found) {
-    throw new Error('No local Chrome/Chromium executable found. Set LOCAL_CHROME_EXECUTABLE to a browser binary path.');
-  }
-
-  return found;
-}
-
 async function getPlaywright() {
-  const { chromium } = await import('playwright-core');
-  if (IS_VERCEL) {
-    const chromiumPkg = await import('@sparticuz/chromium');
-    return {
-      chromium,
-      executablePath: await chromiumPkg.default.executablePath(),
-      args: chromiumPkg.default.args,
-      headless: true,
-    };
-  }
-
-  return {
-    chromium,
-    executablePath: findLocalChromeExecutable(),
-    args: [] as string[],
-    headless: undefined as boolean | undefined,
-  };
+  return getBrowserLaunchConfig(true);
 }
 
 /**
@@ -135,7 +99,7 @@ async function isSessionValid(page: Page): Promise<boolean> {
 export async function ensureSession(
   onStatus: (status: string) => void
 ): Promise<void> {
-  if (IS_VERCEL) {
+  if (isVercelRuntime()) {
     throw new Error('Uber receipt download is not supported on Vercel. It requires a persistent browser session and manual login.');
   }
 

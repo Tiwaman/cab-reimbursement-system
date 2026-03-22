@@ -122,6 +122,7 @@ async function fetchUberInvoices(gmail: GmailApi, startDate: string | null, endD
         pdfLink: finalPdfLink,
         platform: 'uber' as const,
         downloadKind: 'uber-trip' as const,
+        messageId: msg.id!,
         dedupeKey: `uber-${finalDateObj.toLocaleDateString('en-GB')}-${amount}-${pickup.slice(0, 20)}`,
       };
     })

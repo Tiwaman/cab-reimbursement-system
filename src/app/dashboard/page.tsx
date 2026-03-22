@@ -325,13 +325,13 @@ export default function Dashboard() {
                       </td>
 
                       <td data-label="Date">
-                        <div style={{ fontWeight: 700, color: 'var(--l-text, #FAFAFA)', fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
+                        <div className="table-date" style={{ fontWeight: 700, color: 'var(--l-text, #FAFAFA)', fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
                           {invoice.date.split(',')[0]}
                         </div>
                       </td>
 
                       <td data-label="Route" onClick={e => e.stopPropagation()}>
-                        <div style={{ fontSize: '0.95rem', color: 'var(--l-text-2, #A1A1AA)' }} className="truncate">
+                        <div style={{ fontSize: '0.95rem', color: 'var(--l-text-2, #A1A1AA)' }} className="route-text">
                           {invoice.pickup} &rarr; {invoice.drop}
                         </div>
                       </td>

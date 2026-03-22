@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { signIn, useSession } from 'next-auth/react';
-import { motion } from 'framer-motion';
+import Image from "next/image";
+import { signIn, useSession } from "next-auth/react";
+import { motion } from "framer-motion";
+import type { TargetAndTransition, Variants } from "framer-motion";
 import {
   RiGoogleLine,
   RiArrowRightLine,
@@ -14,18 +15,31 @@ import {
   RiSparklingLine,
   RiTimeLine,
   RiArrowDownLine,
-} from 'react-icons/ri';
-import { TbReceipt2, TbBrain, TbPlugConnected, TbShieldCheck } from 'react-icons/tb';
-import { SiUber } from 'react-icons/si';
+} from "react-icons/ri";
+import {
+  TbReceipt2,
+  TbBrain,
+  TbPlugConnected,
+  TbShieldCheck,
+} from "react-icons/tb";
+import { SiUber } from "react-icons/si";
 
 /* ── Animation Helpers ──────────────────────────────────────── */
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, delay: i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] },
-  }),
+  visible: (i = 0): TargetAndTransition => {
+    const delay = typeof i === "number" ? i * 0.1 : 0;
+
+    return {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        delay,
+        ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number],
+      },
+    };
+  },
 };
 
 const stagger = {
@@ -34,32 +48,70 @@ const stagger = {
 
 /* ── Mock Data for the Hero Mockup ──────────────────────────── */
 const mockRows = [
-  { date: 'Mar 21', amount: '₹342', from: 'Koramangala', to: 'HSR Layout', platform: 'Uber', cls: 'l-platform-uber' },
-  { date: 'Mar 19', amount: '₹215', from: 'Indiranagar', to: 'MG Road', platform: 'Ola', cls: 'l-platform-ola' },
-  { date: 'Mar 17', amount: '₹567', from: 'Airport', to: 'Electronic City', platform: 'Rapido', cls: 'l-platform-rapido' },
-  { date: 'Mar 15', amount: '₹189', from: 'Whitefield', to: 'Marathahalli', platform: 'Uber', cls: 'l-platform-uber' },
-  { date: 'Mar 12', amount: '₹423', from: 'JP Nagar', to: 'Silk Board', platform: 'Ola', cls: 'l-platform-ola' },
+  {
+    date: "Mar 21",
+    amount: "₹342",
+    from: "Koramangala",
+    to: "HSR Layout",
+    platform: "Uber",
+    cls: "l-platform-uber",
+  },
+  {
+    date: "Mar 19",
+    amount: "₹215",
+    from: "Indiranagar",
+    to: "MG Road",
+    platform: "Ola",
+    cls: "l-platform-ola",
+  },
+  {
+    date: "Mar 17",
+    amount: "₹567",
+    from: "Airport",
+    to: "Electronic City",
+    platform: "Rapido",
+    cls: "l-platform-rapido",
+  },
+  {
+    date: "Mar 15",
+    amount: "₹189",
+    from: "Whitefield",
+    to: "Marathahalli",
+    platform: "Uber",
+    cls: "l-platform-uber",
+  },
+  {
+    date: "Mar 12",
+    amount: "₹423",
+    from: "JP Nagar",
+    to: "Silk Board",
+    platform: "Ola",
+    cls: "l-platform-ola",
+  },
 ];
 
 /* ── How It Works Steps ─────────────────────────────────────── */
 const steps = [
   {
-    num: '01',
+    num: "01",
     icon: RiGoogleLine,
-    title: 'Connect your Gmail',
-    description: 'One-click Google sign-in with verified read-only access. We can only see cab receipts — nothing else touches your inbox.',
+    title: "Connect your Gmail",
+    description:
+      "One-click Google sign-in with verified read-only access. We can only see cab receipts — nothing else touches your inbox.",
   },
   {
-    num: '02',
+    num: "02",
     icon: TbBrain,
-    title: 'We scan & extract',
-    description: 'Our system finds every ride receipt from Uber, Ola, and Rapido. Dates, fares, and routes — extracted automatically.',
+    title: "We scan & extract",
+    description:
+      "Our system finds every ride receipt from Uber, Ola, and Rapido. Dates, fares, and routes — extracted automatically.",
   },
   {
-    num: '03',
+    num: "03",
     icon: RiFilePdf2Line,
-    title: 'Download your report',
-    description: 'Get a bundled PDF with all receipts and a formatted Excel spreadsheet. Submit to your finance team in seconds.',
+    title: "Download your report",
+    description:
+      "Get a bundled PDF with all receipts and a formatted Excel spreadsheet. Submit to your finance team in seconds.",
   },
 ];
 
@@ -67,39 +119,45 @@ const steps = [
 const features = [
   {
     icon: TbPlugConnected,
-    title: 'Multi-Platform',
-    description: 'Uber, Ola, Rapido — and more coming. One system that catches every cab receipt across all platforms.',
-    iconClass: 'l-bento-icon-indigo',
+    title: "Multi-Platform",
+    description:
+      "Uber, Ola, Rapido — and more coming. One system that catches every cab receipt across all platforms.",
+    iconClass: "l-bento-icon-indigo",
   },
   {
     icon: RiSparklingLine,
-    title: 'Smart Extraction',
-    description: 'Trip dates, INR amounts, pickup & drop locations — pulled from raw email HTML with precision.',
-    iconClass: 'l-bento-icon-amber',
+    title: "Smart Extraction",
+    description:
+      "Trip dates, INR amounts, pickup & drop locations — pulled from raw email HTML with precision.",
+    iconClass: "l-bento-icon-amber",
   },
   {
     icon: RiFilePdf2Line,
-    title: 'One PDF Bundle',
-    description: 'Every receipt collated into a single, clean PDF. No more hunting through email threads.',
-    iconClass: 'l-bento-icon-indigo',
+    title: "One PDF Bundle",
+    description:
+      "Every receipt collated into a single, clean PDF. No more hunting through email threads.",
+    iconClass: "l-bento-icon-indigo",
   },
   {
     icon: RiFileExcel2Line,
-    title: 'Excel Spreadsheet',
-    description: 'A structured spreadsheet with all trip details formatted exactly how finance teams expect it.',
-    iconClass: 'l-bento-icon-emerald',
+    title: "Excel Spreadsheet",
+    description:
+      "A structured spreadsheet with all trip details formatted exactly how finance teams expect it.",
+    iconClass: "l-bento-icon-emerald",
   },
   {
     icon: RiTimeLine,
-    title: 'Instant Processing',
-    description: 'From inbox scan to downloadable report in under a minute. What used to take hours, done while you sip chai.',
-    iconClass: 'l-bento-icon-amber',
+    title: "Instant Processing",
+    description:
+      "From inbox scan to downloadable report in under a minute. What used to take hours, done while you sip chai.",
+    iconClass: "l-bento-icon-amber",
   },
   {
     icon: RiShieldKeyholeLine,
-    title: 'Bank-Grade Security',
-    description: 'OAuth 2.0 verified by Google. Read-only access. Your emails are never stored on our servers.',
-    iconClass: 'l-bento-icon-emerald',
+    title: "Bank-Grade Security",
+    description:
+      "OAuth 2.0 verified by Google. Read-only access. Your emails are never stored on our servers.",
+    iconClass: "l-bento-icon-emerald",
   },
 ];
 
@@ -107,18 +165,18 @@ const features = [
 const securityItems = [
   {
     icon: TbShieldCheck,
-    title: 'Google Verified',
-    description: 'OAuth 2.0 consent reviewed and approved by Google.',
+    title: "Google Verified",
+    description: "OAuth 2.0 consent reviewed and approved by Google.",
   },
   {
     icon: RiEyeOffLine,
-    title: 'Read-Only Access',
-    description: 'We can never modify, send, or delete your emails.',
+    title: "Read-Only Access",
+    description: "We can never modify, send, or delete your emails.",
   },
   {
     icon: RiLockLine,
-    title: 'No Data Stored',
-    description: 'Your receipt data is never retained after export.',
+    title: "No Data Stored",
+    description: "Your receipt data is never retained after export.",
   },
 ];
 
@@ -126,18 +184,13 @@ const securityItems = [
    LANDING PAGE
    ══════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const { data: session } = useSession();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { data: session, status } = useSession();
 
   const handleCTA = () => {
     if (session) {
-      window.location.href = '/dashboard';
+      window.location.href = "/dashboard";
     } else {
-      signIn('google');
+      signIn("google");
     }
   };
 
@@ -153,13 +206,16 @@ export default function LandingPage() {
               </div>
               CabReimburse
             </div>
-            {mounted ? (
+            {status !== "loading" ? (
               session ? (
-                <button onClick={() => window.location.href = '/dashboard'} className="l-nav-btn">
+                <button
+                  onClick={() => (window.location.href = "/dashboard")}
+                  className="l-nav-btn"
+                >
                   Dashboard <RiArrowRightLine size={14} />
                 </button>
               ) : (
-                <button onClick={() => signIn('google')} className="l-nav-btn">
+                <button onClick={() => signIn("google")} className="l-nav-btn">
                   Sign in
                 </button>
               )
@@ -192,24 +248,29 @@ export default function LandingPage() {
           variants={stagger}
         >
           <motion.h1 variants={fadeUp} custom={0}>
-            Your cab receipts.{' '}
-            <br />
+            Your cab receipts. <br />
             <span className="l-gradient-text">One report. Zero effort.</span>
           </motion.h1>
 
           <motion.p className="l-hero-sub" variants={fadeUp} custom={1}>
-            Connect your Gmail once. We find every cab receipt, extract the details,
-            and deliver a polished PDF + spreadsheet — ready to submit for reimbursement.
+            Connect your Gmail once. We find every cab receipt, extract the
+            details, and deliver a polished PDF + spreadsheet — ready to submit
+            for reimbursement.
           </motion.p>
 
           <motion.div
             variants={fadeUp}
             custom={2}
-            style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}
+            style={{
+              display: "flex",
+              gap: 16,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
           >
             <button onClick={handleCTA} className="l-hero-cta">
               <RiGoogleLine size={22} />
-              {session ? 'Open Dashboard' : 'Connect Gmail — It\'s Free'}
+              {session ? "Open Dashboard" : "Connect Gmail — It's Free"}
             </button>
             <a href="#how-it-works" className="l-hero-cta-secondary">
               See how it works <RiArrowDownLine size={16} />
@@ -222,7 +283,11 @@ export default function LandingPage() {
           className="l-hero-mockup"
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{
+            duration: 0.8,
+            delay: 0.5,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
         >
           {/* Floating receipt snippets */}
           <motion.div
@@ -231,7 +296,12 @@ export default function LandingPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 1.0 }}
           >
-            <div className="l-fr-icon" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff' }}>U</div>
+            <div
+              className="l-fr-icon"
+              style={{ background: "rgba(255,255,255,0.08)", color: "#fff" }}
+            >
+              U
+            </div>
             <div className="l-fr-amount">₹342</div>
             <div className="l-fr-label">Uber ride</div>
           </motion.div>
@@ -242,7 +312,12 @@ export default function LandingPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 1.2 }}
           >
-            <div className="l-fr-icon" style={{ background: 'rgba(52,211,153,0.12)', color: '#34D399' }}>O</div>
+            <div
+              className="l-fr-icon"
+              style={{ background: "rgba(52,211,153,0.12)", color: "#34D399" }}
+            >
+              O
+            </div>
             <div className="l-fr-amount">₹215</div>
             <div className="l-fr-label">Ola ride</div>
           </motion.div>
@@ -253,7 +328,12 @@ export default function LandingPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 1.4 }}
           >
-            <div className="l-fr-icon" style={{ background: 'rgba(251,191,36,0.12)', color: '#FBBF24' }}>R</div>
+            <div
+              className="l-fr-icon"
+              style={{ background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}
+            >
+              R
+            </div>
             <div className="l-fr-amount">₹567</div>
             <div className="l-fr-label">Rapido ride</div>
           </motion.div>
@@ -264,7 +344,9 @@ export default function LandingPage() {
               <div className="l-mockup-dot" />
               <div className="l-mockup-dot" />
               <div className="l-mockup-dot" />
-              <span className="l-mockup-title">Your Expense Report — March 2026</span>
+              <span className="l-mockup-title">
+                Your Expense Report — March 2026
+              </span>
               <div style={{ width: 36 }} />
             </div>
             <div className="l-mockup-body">
@@ -272,7 +354,7 @@ export default function LandingPage() {
                 <span>Date</span>
                 <span>Route</span>
                 <span>Platform</span>
-                <span style={{ textAlign: 'right' }}>Amount</span>
+                <span style={{ textAlign: "right" }}>Amount</span>
               </div>
               {mockRows.map((row, i) => (
                 <motion.div
@@ -286,8 +368,14 @@ export default function LandingPage() {
                   <span className="l-row-route">
                     {row.from} → {row.to}
                   </span>
-                  <span><span className={`l-row-platform ${row.cls}`}>{row.platform}</span></span>
-                  <span className="l-row-amount" style={{ textAlign: 'right' }}>{row.amount}</span>
+                  <span>
+                    <span className={`l-row-platform ${row.cls}`}>
+                      {row.platform}
+                    </span>
+                  </span>
+                  <span className="l-row-amount" style={{ textAlign: "right" }}>
+                    {row.amount}
+                  </span>
                 </motion.div>
               ))}
               <div className="l-mockup-footer">
@@ -319,11 +407,15 @@ export default function LandingPage() {
             className="l-brand-grid"
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true, margin: "-60px" }}
             variants={stagger}
           >
             {/* Uber */}
-            <motion.div className="l-brand-card l-brand-uber" variants={fadeUp} custom={0}>
+            <motion.div
+              className="l-brand-card l-brand-uber"
+              variants={fadeUp}
+              custom={0}
+            >
               <div className="l-brand-logo-area">
                 {/* Uber app-icon style mark: black pill with official SiUber wordmark */}
                 <div className="l-uber-mark">
@@ -339,14 +431,26 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Ola */}
-            <motion.div className="l-brand-card l-brand-ola" variants={fadeUp} custom={1}>
+            <motion.div
+              className="l-brand-card l-brand-ola"
+              variants={fadeUp}
+              custom={1}
+            >
               <div className="l-brand-logo-area">
                 <div className="l-ola-logo-pill">
-                  <img src="/ola.svg" alt="Ola" className="l-brand-img l-ola-img" />
+                  <Image
+                    src="/ola.svg"
+                    alt="Ola"
+                    className="l-brand-img l-ola-img"
+                    width={120}
+                    height={40}
+                  />
                 </div>
               </div>
               <div className="l-brand-info">
-                <span className="l-brand-name" style={{ color: '#D7DF20' }}>Ola</span>
+                <span className="l-brand-name" style={{ color: "#D7DF20" }}>
+                  Ola
+                </span>
                 <span className="l-brand-status">
                   <span className="l-status-dot l-dot-ola" /> Receipts synced
                 </span>
@@ -354,18 +458,29 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Rapido */}
-            <motion.div className="l-brand-card l-brand-rapido" variants={fadeUp} custom={2}>
+            <motion.div
+              className="l-brand-card l-brand-rapido"
+              variants={fadeUp}
+              custom={2}
+            >
               <div className="l-brand-logo-area">
-                <img src="/rapido.svg" alt="Rapido" className="l-brand-img l-rapido-img" />
+                <Image
+                  src="/rapido.svg"
+                  alt="Rapido"
+                  className="l-brand-img l-rapido-img"
+                  width={120}
+                  height={40}
+                />
               </div>
               <div className="l-brand-info">
-                <span className="l-brand-name" style={{ color: '#FFCC00' }}>Rapido</span>
+                <span className="l-brand-name" style={{ color: "#FFCC00" }}>
+                  Rapido
+                </span>
                 <span className="l-brand-status">
                   <span className="l-status-dot l-dot-rapido" /> Receipts synced
                 </span>
               </div>
             </motion.div>
-
           </motion.div>
           <motion.p
             className="l-connectors-more-note"
@@ -385,9 +500,9 @@ export default function LandingPage() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: "-80px" }}
             variants={stagger}
-            style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto' }}
+            style={{ textAlign: "center", maxWidth: 600, margin: "0 auto" }}
           >
             <motion.p className="l-section-label" variants={fadeUp} custom={0}>
               How it works
@@ -395,9 +510,14 @@ export default function LandingPage() {
             <motion.h2 className="l-section-title" variants={fadeUp} custom={1}>
               Three steps. That&apos;s it.
             </motion.h2>
-            <motion.p className="l-section-sub" variants={fadeUp} custom={2} style={{ margin: '0 auto' }}>
-              No setup wizards. No configuration. No learning curve.
-              Connect, extract, download.
+            <motion.p
+              className="l-section-sub"
+              variants={fadeUp}
+              custom={2}
+              style={{ margin: "0 auto" }}
+            >
+              No setup wizards. No configuration. No learning curve. Connect,
+              extract, download.
             </motion.p>
           </motion.div>
 
@@ -408,7 +528,7 @@ export default function LandingPage() {
                 className="l-how-card"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
+                viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.5, delay: i * 0.15 }}
               >
                 <div className="l-how-number">{step.num}</div>
@@ -426,9 +546,9 @@ export default function LandingPage() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: "-80px" }}
             variants={stagger}
-            style={{ textAlign: 'center', maxWidth: 600, margin: '0 auto' }}
+            style={{ textAlign: "center", maxWidth: 600, margin: "0 auto" }}
           >
             <motion.p className="l-section-label" variants={fadeUp} custom={0}>
               Features
@@ -436,9 +556,14 @@ export default function LandingPage() {
             <motion.h2 className="l-section-title" variants={fadeUp} custom={1}>
               Everything you need. Nothing you don&apos;t.
             </motion.h2>
-            <motion.p className="l-section-sub" variants={fadeUp} custom={2} style={{ margin: '0 auto' }}>
-              Built for the monthly grind of expense reporting.
-              We handle the tedious parts so you never have to.
+            <motion.p
+              className="l-section-sub"
+              variants={fadeUp}
+              custom={2}
+              style={{ margin: "0 auto" }}
+            >
+              Built for the monthly grind of expense reporting. We handle the
+              tedious parts so you never have to.
             </motion.p>
           </motion.div>
 
@@ -449,7 +574,7 @@ export default function LandingPage() {
                 className="l-bento-card"
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
+                viewport={{ once: true, margin: "-40px" }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
               >
                 <div className={`l-bento-icon ${f.iconClass}`}>
@@ -469,7 +594,7 @@ export default function LandingPage() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
+            viewport={{ once: true, margin: "-80px" }}
             variants={stagger}
           >
             <motion.p className="l-section-label" variants={fadeUp} custom={0}>
@@ -478,9 +603,14 @@ export default function LandingPage() {
             <motion.h2 className="l-section-title" variants={fadeUp} custom={1}>
               Your privacy is non-negotiable.
             </motion.h2>
-            <motion.p className="l-section-sub" variants={fadeUp} custom={2} style={{ margin: '0 auto' }}>
-              We take the minimum access we need and nothing more.
-              Your inbox stays yours.
+            <motion.p
+              className="l-section-sub"
+              variants={fadeUp}
+              custom={2}
+              style={{ margin: "0 auto" }}
+            >
+              We take the minimum access we need and nothing more. Your inbox
+              stays yours.
             </motion.p>
           </motion.div>
 
@@ -508,24 +638,26 @@ export default function LandingPage() {
       {/* ── Final CTA ─────────────────────────────────────── */}
       <section className="l-cta">
         <div className="l-cta-bg" />
-        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="container" style={{ position: "relative", zIndex: 1 }}>
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-60px' }}
+            viewport={{ once: true, margin: "-60px" }}
             variants={stagger}
           >
             <motion.h2 variants={fadeUp} custom={0}>
-              Your finance team<br />will thank you.
+              Your finance team
+              <br />
+              will thank you.
             </motion.h2>
             <motion.p variants={fadeUp} custom={1}>
-              Stop spending hours compiling cab receipts.
-              Automate it in 30 seconds.
+              Stop spending hours compiling cab receipts. Automate it in 30
+              seconds.
             </motion.p>
             <motion.div variants={fadeUp} custom={2}>
               <button onClick={handleCTA} className="l-hero-cta">
                 <RiGoogleLine size={22} />
-                {session ? 'Go to Dashboard' : 'Get Started — It\'s Free'}
+                {session ? "Go to Dashboard" : "Get Started — It's Free"}
               </button>
             </motion.div>
           </motion.div>
