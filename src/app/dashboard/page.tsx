@@ -14,28 +14,16 @@ import {
   RiArrowLeftLine,
   RiCheckLine,
   RiFilePdfLine,
-  RiMapPin2Line,
-  RiMapPinLine,
   RiRefreshLine,
-  RiFilterLine,
 } from 'react-icons/ri';
 import { TbReceipt2 } from 'react-icons/tb';
+import type { InvoiceRecord } from '@/lib/invoice-types';
 
 import './dashboard.css';
 
-interface Invoice {
-  id: string;
-  date: string;
-  amount: number;
-  pickup: string;
-  drop: string;
-  pdfLink: string;
-  selected?: boolean;
-}
-
 export default function Dashboard() {
   const { data: session } = useSession();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('');
@@ -70,7 +58,7 @@ export default function Dashboard() {
       if (data.error) throw new Error(data.error);
       if (!data.invoices || data.invoices.length === 0) throw new Error('No cab receipts found in the specified date range.');
 
-      setInvoices(data.invoices.map((inv: Invoice) => ({ ...inv, selected: true })));
+      setInvoices(data.invoices.map((inv: InvoiceRecord) => ({ ...inv, selected: true })));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -349,7 +337,9 @@ export default function Dashboard() {
                       </td>
 
                       <td data-label="Platform" onClick={e => e.stopPropagation()}>
-                        <span className="platform-badge platform-badge-uber">Uber</span>
+                        <span className={`platform-badge ${invoice.platform === 'rapido' ? 'platform-badge-rapido' : 'platform-badge-uber'}`}>
+                          {invoice.platform === 'rapido' ? 'Rapido' : 'Uber'}
+                        </span>
                       </td>
 
                       <td data-label="Amount" style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
@@ -364,15 +354,25 @@ export default function Dashboard() {
                       </td>
 
                       <td data-label="Receipt" style={{ textAlign: 'right', paddingRight: 24 }} onClick={e => e.stopPropagation()}>
-                        <a
-                          href={invoice.pdfLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-dashboard btn-ghost-dark"
-                          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                        >
-                          <RiFilePdfLine size={15} /> PDF
-                        </a>
+                        {invoice.pdfLink ? (
+                          <a
+                            href={invoice.pdfLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-dashboard btn-ghost-dark"
+                            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                          >
+                            <RiFilePdfLine size={15} /> PDF
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            className="btn-dashboard btn-ghost-dark"
+                            style={{ padding: '8px 16px', fontSize: '0.85rem', opacity: 0.5, cursor: 'not-allowed' }}
+                          >
+                            <RiFilePdfLine size={15} /> PDF
+                          </button>
+                        )}
                       </td>
                     </motion.tr>
                   ))}

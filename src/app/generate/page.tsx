@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RiLoader4Line,
@@ -16,18 +15,9 @@ import {
 } from 'react-icons/ri';
 import { TbReceipt2 } from 'react-icons/tb';
 import * as XLSX from 'xlsx';
+import type { InvoiceRecord } from '@/lib/invoice-types';
 
 import './generate.css';
-
-interface Invoice {
-  id: string;
-  date: string;
-  amount: number;
-  pickup: string;
-  drop: string;
-  pdfLink: string;
-  selected?: boolean;
-}
 
 type StageStatus = 'pending' | 'running' | 'done' | 'error';
 
@@ -42,7 +32,6 @@ interface Stage {
 type PdfStage = 'idle' | 'connecting' | 'downloading' | 'merging' | 'done' | 'error';
 
 export default function GeneratePage() {
-  const { data: session } = useSession();
   const [stages, setStages] = useState<Stage[]>([
     {
       id: 'data',
@@ -61,7 +50,7 @@ export default function GeneratePage() {
   ]);
 
   const [logs, setLogs] = useState<string[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -151,6 +140,7 @@ export default function GeneratePage() {
   const downloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(invoices.map(inv => ({
       'Trip Date': inv.date,
+      'Platform': inv.platform === 'rapido' ? 'Rapido' : 'Uber',
       'Amount (INR)': inv.amount,
       'Pickup Location': inv.pickup,
       'Drop Location': inv.drop,
@@ -158,18 +148,22 @@ export default function GeneratePage() {
     })));
 
     worksheet['!cols'] = [
-      { wch: 15 }, { wch: 14 }, { wch: 52 }, { wch: 52 }, { wch: 22 },
+      { wch: 15 }, { wch: 12 }, { wch: 14 }, { wch: 52 }, { wch: 52 }, { wch: 22 },
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Reimbursement');
-    XLSX.writeFile(workbook, `Uber_Reimbursement_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(workbook, `Cab_Reimbursement_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`);
   };
 
   // ── Combined PDF Generation ──────────────────────
 
   const startPdfGeneration = async () => {
-    const validInvoices = invoices.filter(inv => inv.pdfLink);
+    const validInvoices = invoices.filter(inv =>
+      inv.downloadKind === 'uber-trip'
+        ? Boolean(inv.pdfLink)
+        : Boolean(inv.messageId && inv.attachmentId)
+    );
     if (validInvoices.length === 0) {
       setPdfError('No valid receipt links found in selected invoices.');
       return;
@@ -182,14 +176,11 @@ export default function GeneratePage() {
     setPdfProgress({ current: 0, total: validInvoices.length });
 
     try {
-      const response = await fetch('/api/uber/download-all', {
+      const response = await fetch('/api/receipts/download-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          invoices: validInvoices.map(inv => ({
-            pdfLink: inv.pdfLink,
-            date: inv.date,
-          })),
+          invoices: validInvoices,
         }),
       });
 
@@ -227,6 +218,9 @@ export default function GeneratePage() {
                 if (event.message?.includes('session established') || event.message?.includes('session is active')) {
                   setPdfStage('downloading');
                 }
+                if (event.message?.includes('Merging')) {
+                  setPdfStage('merging');
+                }
                 break;
               case 'progress':
                 setPdfStage('downloading');
@@ -262,7 +256,7 @@ export default function GeneratePage() {
 
   const downloadPdf = () => {
     if (!pdfToken) return;
-    window.open(`/api/uber/download-all?token=${pdfToken}`, '_blank');
+    window.open(`/api/receipts/download-all?token=${pdfToken}`, '_blank');
   };
 
   const allDone = stages.every(s => s.status === 'done');
