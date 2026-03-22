@@ -152,49 +152,45 @@ export default function GeneratePage() {
         <div className="l-hero-grid" style={{ opacity: 0.15 }} />
       </div>
 
-      {/* ── Navigation (Matching Dashboard Style) ──────────────── */}
+      {/* ── Navigation ──────────────── */}
       <nav className="dashboard-nav">
         <div className="container" style={{ paddingTop: 0, paddingBottom: 0 }}>
-          <div className="flex items-center justify-between" style={{ height: '64px' }}>
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between" style={{ height: '56px' }}>
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => window.location.href = '/dashboard'}
-                className="btn-dashboard btn-ghost-dark"
-                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                className="gen-back-btn"
               >
-                <RiArrowLeftLine size={16} /> Back
+                <RiArrowLeftLine size={16} />
               </button>
-              <div className="mobile-hide" style={{ height: 24, width: 1, background: 'rgba(255,255,255,0.06)' }} />
               <div className="flex items-center gap-3">
                 <div style={{
-                  width: 32, height: 32,
+                  width: 30, height: 30,
                   background: 'var(--l-accent-strong, #6366F1)',
                   borderRadius: 8,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)'
+                  boxShadow: '0 0 12px rgba(99, 102, 241, 0.3)'
                 }}>
-                  <TbReceipt2 size={18} color="#fff" />
+                  <TbReceipt2 size={16} color="#fff" />
                 </div>
-                <span className="mobile-hide" style={{ fontFamily: 'Libre Baskerville, serif', fontWeight: 700, fontSize: '1.1rem', color: '#fff', letterSpacing: '-0.02em' }}>
+                <span className="mobile-hide" style={{ fontFamily: 'Libre Baskerville, serif', fontWeight: 700, fontSize: '1rem', color: '#fff', letterSpacing: '-0.02em' }}>
                   CabReimburse
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="badge-dark badge-dark-accent">
-                <RiSparkling2Line size={14} /> Report Engine
-              </span>
-            </div>
+            <span className="badge-dark badge-dark-accent">
+              <RiSparkling2Line size={14} /> Report Engine
+            </span>
           </div>
         </div>
       </nav>
 
       {/* ── Page Content ────────────────────────────────────── */}
-      <div className="container" style={{ paddingTop: 80, paddingBottom: 120, position: 'relative', zIndex: 1 }}>
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          
+      <div className="container" style={{ paddingTop: 40, paddingBottom: 80, position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+
           {/* Header */}
-          <div style={{ marginBottom: 64 }}>
+          <div style={{ marginBottom: 32 }}>
             <h1 className="generate-title">
               Generate <span className="generate-gradient-text">Report</span>
             </h1>
@@ -218,11 +214,11 @@ export default function GeneratePage() {
                   <div key={stage.id} className="stage-row">
                     <div className={`stage-visual ${isRunning ? 'active' : isDoneStage ? 'completed' : ''}`}>
                       {isDoneStage ? (
-                        <RiCheckLine size={24} />
+                        <RiCheckLine size={18} />
                       ) : isRunning ? (
-                        <RiLoader4Line size={24} className="spin" />
+                        <RiLoader4Line size={18} className="spin" />
                       ) : (
-                        <Icon size={22} />
+                        <Icon size={18} />
                       )}
                     </div>
                     <div className={`stage-info ${isPending ? 'pending' : ''}`}>
@@ -269,15 +265,15 @@ export default function GeneratePage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="download-result"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="download-icon">
-                      <RiFileExcel2Line size={28} />
+                      <RiFileExcel2Line size={22} />
                     </div>
                     <div>
-                      <h4 style={{ fontWeight: 700, color: '#fff', fontSize: '1.05rem', marginBottom: 4 }}>
+                      <h4 style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem', marginBottom: 2 }}>
                         Summary_Report.xlsx
                       </h4>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.88rem' }}>
+                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>
                         {invoices.length} trips &nbsp;·&nbsp; ₹{invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)} total
                       </p>
                     </div>
@@ -286,9 +282,9 @@ export default function GeneratePage() {
                   <button
                     onClick={downloadExcel}
                     className="btn-dashboard btn-primary-dark"
-                    style={{ background: '#10B981', padding: '14px 28px', height: 'auto', borderRadius: '14px' }}
+                    style={{ background: '#10B981', padding: '10px 22px', height: 'auto', borderRadius: '12px', fontSize: '0.9rem' }}
                   >
-                    <RiDownloadLine size={18} /> Download
+                    <RiDownloadLine size={16} /> Download
                   </button>
                 </motion.div>
               )}

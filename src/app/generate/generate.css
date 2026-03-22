@@ -31,6 +31,26 @@
   right: -100px;
 }
 
+/* Back Button */
+.gen-back-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gen-back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
 /* Card - Immersive Glassmorphism */
 .generate-card {
   position: relative;
@@ -39,9 +59,9 @@
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 32px;
-  padding: 48px;
-  box-shadow: 
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow:
     0 25px 80px -20px rgba(0, 0, 0, 0.6),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
@@ -58,11 +78,11 @@
 /* Heading - Cinematic */
 .generate-title {
   font-family: 'Libre Baskerville', Georgia, serif;
-  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.1;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   color: #fff;
   text-align: center;
 }
@@ -78,11 +98,11 @@
 
 .generate-sub {
   font-family: 'Nunito Sans', sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   color: var(--l-text-2, #A1A1AA);
   text-align: center;
-  margin-bottom: 56px;
-  max-width: 500px;
+  margin-bottom: 0;
+  max-width: 480px;
   margin-left: auto;
   margin-right: auto;
   line-height: 1.6;
@@ -93,30 +113,30 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 
 .stage-row {
   display: flex;
-  gap: 24px;
-  padding-bottom: 32px;
+  gap: 16px;
+  padding-bottom: 20px;
   position: relative;
 }
 
 .stage-row:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 21px;
-  top: 42px;
+  left: 18px;
+  top: 38px;
   bottom: 0;
   width: 1px;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
 }
 
 .stage-visual {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,14 +164,14 @@
 
 .stage-info h3 {
   font-family: 'Nunito Sans', sans-serif;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--l-text, #FAFAFA);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .stage-info p {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: var(--l-text-3, #71717A);
 }
 
@@ -159,15 +179,15 @@
 .gen-terminal {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 16px 20px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: rgba(161, 161, 170, 0.8);
-  margin-bottom: 40px;
+  margin-bottom: 24px;
   box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.2);
-  min-height: 120px;
-  max-height: 180px;
+  min-height: 80px;
+  max-height: 160px;
   overflow-y: auto;
 }
 
@@ -196,13 +216,13 @@
   justify-content: center;
   gap: 12px;
   width: 100%;
-  height: 60px;
+  height: 52px;
   background: var(--l-accent-strong, #6366F1);
   color: #fff;
   border: none;
-  border-radius: 16px;
+  border-radius: 14px;
   font-family: 'Nunito Sans', sans-serif;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 
@@ -225,21 +245,21 @@
 
 /* Download Result Box */
 .download-result {
-  margin-top: 32px;
+  margin-top: 20px;
   background: rgba(52, 211, 153, 0.05);
   border: 1px solid rgba(52, 211, 153, 0.2);
-  border-radius: 20px;
-  padding: 24px;
+  border-radius: 16px;
+  padding: 18px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .download-icon {
-  width: 56px;
-  height: 56px;
+  width: 46px;
+  height: 46px;
   background: var(--l-emerald, #34D399);
-  border-radius: 14px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,7 +269,7 @@
 
 @media (max-width: 640px) {
   .generate-card {
-    padding: 32px 24px;
+    padding: 24px 20px;
   }
   
   .download-result {
