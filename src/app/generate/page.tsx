@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RiLoader4Line,
@@ -11,6 +12,7 @@ import {
   RiSparkling2Line,
   RiDatabase2Line,
 } from 'react-icons/ri';
+import { TbReceipt2 } from 'react-icons/tb';
 import * as XLSX from 'xlsx';
 
 import './generate.css';
@@ -36,6 +38,7 @@ interface Stage {
 }
 
 export default function GeneratePage() {
+  const { data: session } = useSession();
   const [stages, setStages] = useState<Stage[]>([
     {
       id: 'data',
@@ -143,142 +146,154 @@ export default function GeneratePage() {
 
   return (
     <div className="generate-shell">
+      {/* Background Glow */}
+      <div className="generate-bg-glow">
+        <div className="generate-orb" />
+        <div className="l-hero-grid" style={{ opacity: 0.15 }} />
+      </div>
 
-      {/* ── Nav ───────────────────────────────────────────── */}
-      <nav className="generate-nav">
+      {/* ── Navigation (Matching Dashboard Style) ──────────────── */}
+      <nav className="dashboard-nav">
         <div className="container" style={{ paddingTop: 0, paddingBottom: 0 }}>
           <div className="flex items-center justify-between" style={{ height: '64px' }}>
-            <button
-              onClick={() => window.location.href = '/dashboard'}
-              className="btn-dashboard btn-ghost-dark"
-              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-            >
-              <RiArrowLeftLine size={16} /> Back
-            </button>
-            <span className="badge-dark badge-dark-accent">
-              <RiSparkling2Line size={14} /> Report Engine
-            </span>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="btn-dashboard btn-ghost-dark"
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              >
+                <RiArrowLeftLine size={16} /> Back
+              </button>
+              <div className="mobile-hide" style={{ height: 24, width: 1, background: 'rgba(255,255,255,0.06)' }} />
+              <div className="flex items-center gap-3">
+                <div style={{
+                  width: 32, height: 32,
+                  background: 'var(--l-accent-strong, #6366F1)',
+                  borderRadius: 8,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)'
+                }}>
+                  <TbReceipt2 size={18} color="#fff" />
+                </div>
+                <span className="mobile-hide" style={{ fontFamily: 'Libre Baskerville, serif', fontWeight: 700, fontSize: '1.1rem', color: '#fff', letterSpacing: '-0.02em' }}>
+                  CabReimburse
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="badge-dark badge-dark-accent">
+                <RiSparkling2Line size={14} /> Report Engine
+              </span>
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* ── Content ─────────────────────────────────────────── */}
-      <div className="container" style={{ paddingTop: 64, paddingBottom: 100 }}>
-        <div style={{ maxWidth: 680, margin: '0 auto' }}>
-
-          {/* Page Title */}
-          <div style={{ marginBottom: 48, textAlign: 'center' }}>
-            <h1 className="dashboard-title" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.2rem)' }}>
-              Generate Report
+      {/* ── Page Content ────────────────────────────────────── */}
+      <div className="container" style={{ paddingTop: 80, paddingBottom: 120, position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div style={{ marginBottom: 64 }}>
+            <h1 className="generate-title">
+              Generate <span className="generate-gradient-text">Report</span>
             </h1>
-            <p className="dashboard-sub" style={{ fontSize: '1.05rem' }}>
-              Compiling <span style={{ color: 'var(--l-text, #FAFAFA)', fontWeight: 600 }}>{invoices.length} {invoices.length === 1 ? 'trip' : 'trips'}</span> into a professional expense summary.
+            <p className="generate-sub">
+              Compiling <span style={{ color: '#fff', fontWeight: 600 }}>{invoices.length} {invoices.length === 1 ? 'trip' : 'trips'}</span> into a professional expense summary for your finance team.
             </p>
           </div>
 
-          {/* ── Stages Card ─────────────────────────────────── */}
-          <div className="stage-card">
+          {/* Main Processing Card */}
+          <div className="generate-card">
+            
+            {/* Stages Timeline */}
+            <div className="stage-list">
+              {stages.map((stage) => {
+                const Icon = stage.icon;
+                const isRunning = stage.status === 'running';
+                const isDoneStage = stage.status === 'done';
+                const isPending = stage.status === 'pending';
 
-            {stages.map((stage) => {
-              const Icon = stage.icon;
-              const isPending = stage.status === 'pending';
-              const isRunning = stage.status === 'running';
-              const isDoneStage = stage.status === 'done';
-
-              return (
-                <div key={stage.id} className="stage-item">
-                  <div className={`stage-icon-box ${isRunning ? 'running' : isDoneStage ? 'done' : ''}`}>
-                    {isDoneStage ? (
-                      <RiCheckLine size={22} />
-                    ) : isRunning ? (
-                      <RiLoader4Line size={22} className="spin" />
-                    ) : (
-                      <Icon size={22} />
-                    )}
+                return (
+                  <div key={stage.id} className="stage-row">
+                    <div className={`stage-visual ${isRunning ? 'active' : isDoneStage ? 'completed' : ''}`}>
+                      {isDoneStage ? (
+                        <RiCheckLine size={24} />
+                      ) : isRunning ? (
+                        <RiLoader4Line size={24} className="spin" />
+                      ) : (
+                        <Icon size={22} />
+                      )}
+                    </div>
+                    <div className={`stage-info ${isPending ? 'pending' : ''}`}>
+                      <h3>{stage.label}</h3>
+                      <p>{stage.description}</p>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className={`stage-content ${isPending ? 'pending' : ''}`} style={{ flex: 1 }}>
-                    <h3>{stage.label}</h3>
-                    <p>{stage.description}</p>
-                    {isRunning && (
-                      <div className="progress-container">
-                        <motion.div 
-                          className="progress-fill"
-                          initial={{ width: '0%' }}
-                          animate={{ width: '100%' }}
-                          transition={{ duration: 2, ease: "easeInOut" }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Terminal Log */}
-            <div className="terminal-container" ref={terminalRef}>
+            {/* Terminal Output */}
+            <div className="gen-terminal" ref={terminalRef}>
               {logs.map((log, i) => (
-                <div key={i} className="terminal-line">
-                  <span className="terminal-prefix">›</span>
+                <div key={i} className="terminal-row">
+                  <span className="terminal-bullet">›</span>
                   <span>{log}</span>
                 </div>
               ))}
               {isGenerating && (
-                <div className="terminal-line">
-                  <span className="terminal-prefix">›</span>
+                <div className="terminal-row">
+                  <span className="terminal-bullet">›</span>
                   <RiLoader4Line size={14} className="spin" />
                 </div>
               )}
             </div>
 
-            {/* Action Area */}
-            <div style={{ marginTop: 40 }}>
-              {!isGenerating && !allDone && (
-                <button
-                  onClick={startGeneration}
-                  disabled={invoices.length === 0}
-                  className="btn-dashboard btn-primary-dark w-full"
-                  style={{ width: '100%', height: 56, fontSize: '1.1rem' }}
-                >
-                  <RiSparkling2Line size={20} /> Generate Summary
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* ── Download Card ────────────────────────────────── */}
-          <AnimatePresence>
-            {isDone && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="result-card"
+            {/* Main Action Button */}
+            {!isGenerating && !allDone && (
+              <button
+                onClick={startGeneration}
+                disabled={invoices.length === 0}
+                className="gen-cta"
               >
-                <div className="result-info">
-                  <div className="excel-icon-box">
-                    <RiFileExcel2Line size={28} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontWeight: 700, color: 'var(--l-text, #FAFAFA)', fontSize: '1rem', marginBottom: 4 }}>
-                      Reimbursement_Report.xlsx
-                    </h4>
-                    <p style={{ color: 'var(--l-text-3, #71717A)', fontSize: '0.85rem' }}>
-                      {invoices.length} trips &nbsp;·&nbsp; ₹{invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)} total
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={downloadExcel}
-                  className="btn-dashboard btn-primary-dark"
-                  style={{ background: '#10B981', boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)' }}
-                >
-                  <RiDownloadLine size={18} /> Download
-                </button>
-              </motion.div>
+                <RiSparkling2Line size={22} /> Generate Summary
+              </button>
             )}
-          </AnimatePresence>
 
+            {/* Result Area */}
+            <AnimatePresence>
+              {isDone && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="download-result"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="download-icon">
+                      <RiFileExcel2Line size={28} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontWeight: 700, color: '#fff', fontSize: '1.05rem', marginBottom: 4 }}>
+                        Summary_Report.xlsx
+                      </h4>
+                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.88rem' }}>
+                        {invoices.length} trips &nbsp;·&nbsp; ₹{invoices.reduce((a, i) => a + i.amount, 0).toFixed(2)} total
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={downloadExcel}
+                    className="btn-dashboard btn-primary-dark"
+                    style={{ background: '#10B981', padding: '14px 28px', height: 'auto', borderRadius: '14px' }}
+                  >
+                    <RiDownloadLine size={18} /> Download
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
