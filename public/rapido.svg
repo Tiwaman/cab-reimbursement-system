@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 148" width="340" height="148">
+  <rect x="0" y="0" width="340" height="148" rx="66" fill="#FFCC00"/>
+  <text
+    x="170"
+    y="100"
+    font-family="'Nunito Sans', 'Nunito', 'Varela Round', 'Arial Rounded MT Bold', Arial, sans-serif"
+    font-size="80"
+    font-weight="800"
+    fill="#000000"
+    text-anchor="middle"
+    letter-spacing="-1"
+  >rapido</text>
+</svg>

@@ -3,8 +3,8 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "CabReimburse | Premium Invoice Automation",
-  description: "Automate your Uber reimbursements with Gmail sync and smart PDF harvesting.",
+  title: "CabReimburse — Cab receipts, one report, zero effort",
+  description: "Connect your Gmail. We find every cab receipt from Uber, Ola, and Rapido — then deliver a polished PDF + spreadsheet ready for reimbursement.",
 };
 
 export default function RootLayout({
@@ -13,8 +13,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>
