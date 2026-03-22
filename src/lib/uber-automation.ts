@@ -1,5 +1,4 @@
-import { chromium, BrowserContext, Page } from 'playwright-core';
-import chromium_pkg from 'chromium';
+import type { BrowserContext, Page } from 'playwright-core';
 import path from 'path';
 import os from 'os';
 
@@ -9,6 +8,17 @@ const LOGIN_TIMEOUT = 120_000; // 2 minutes for user to log in manually
 
 let activeContext: BrowserContext | null = null;
 let activePage: Page | null = null;
+
+/**
+ * Dynamically import playwright-core and the chromium binary.
+ * Using dynamic imports so the bundler does NOT try to resolve these
+ * at build time — which would fail on Vercel (no Chromium binary available).
+ */
+async function getPlaywright() {
+  const { chromium } = await import('playwright-core');
+  const chromium_pkg = await import('chromium');
+  return { chromium, executablePath: (chromium_pkg as any).default?.path || (chromium_pkg as any).path };
+}
 
 /**
  * Extract Uber trip UUID from a pdfLink URL.
@@ -48,8 +58,10 @@ async function launchContext(headed: boolean): Promise<{ context: BrowserContext
     await closeSession();
   }
 
+  const { chromium, executablePath } = await getPlaywright();
+
   const context = await chromium.launchPersistentContext(PROFILE_DIR, {
-    executablePath: (chromium_pkg as any).path,
+    executablePath,
     headless: !headed,
     args: [
       '--disable-blink-features=AutomationControlled',
@@ -73,13 +85,10 @@ async function launchContext(headed: boolean): Promise<{ context: BrowserContext
 async function isSessionValid(page: Page): Promise<boolean> {
   try {
     await page.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-    // If we land on a page with trip data or the trips URL, session is valid
     const url = page.url();
-    // Login pages redirect to auth.uber.com or contain /login
     if (url.includes('auth.uber.com') || url.includes('/login')) {
       return false;
     }
-    // Check for trip content or the trips page itself
     return url.includes('riders.uber.com');
   } catch {
     return false;
@@ -95,7 +104,6 @@ async function isSessionValid(page: Page): Promise<boolean> {
 export async function ensureSession(
   onStatus: (status: string) => void
 ): Promise<void> {
-  // Try headless first with saved profile
   onStatus('Checking saved Uber session...');
   const { page } = await launchContext(false);
 
@@ -104,7 +112,6 @@ export async function ensureSession(
     return;
   }
 
-  // Session expired — close headless and relaunch headed for manual login
   await closeSession();
   onStatus('Session expired. Opening browser for Uber login...');
   onStatus('LOGIN_REQUIRED');
@@ -112,7 +119,6 @@ export async function ensureSession(
   const { page: headedPage } = await launchContext(true);
   await headedPage.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
-  // Wait for the user to log in manually — poll until we're on the trips page
   onStatus('Waiting for you to log in to Uber in the browser window...');
   const startTime = Date.now();
 
@@ -120,11 +126,9 @@ export async function ensureSession(
     await headedPage.waitForTimeout(2000);
     const currentUrl = headedPage.url();
     if (currentUrl.includes('riders.uber.com') && !currentUrl.includes('auth.uber.com') && !currentUrl.includes('/login')) {
-      // Logged in successfully
       onStatus('Uber login successful. Closing browser window...');
       await closeSession();
 
-      // Relaunch headless for actual work
       const { page: freshPage } = await launchContext(false);
       await freshPage.goto(UBER_TRIPS_URL, { waitUntil: 'domcontentloaded', timeout: 15_000 });
       onStatus('Uber session established.');
@@ -144,8 +148,6 @@ export async function downloadReceipt(tripId: string): Promise<Buffer> {
 
   const receiptUrl = `https://riders.uber.com/trips/${tripId}/receipt`;
   await activePage.goto(receiptUrl, { waitUntil: 'networkidle', timeout: 30_000 });
-
-  // Wait a moment for the receipt to fully render
   await activePage.waitForTimeout(1500);
 
   const pdfBuffer = await activePage.pdf({
