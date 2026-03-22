@@ -16,7 +16,7 @@ import { mergePdfs } from "@/lib/pdf-merge";
 import { authOptions } from "@/lib/auth";
 import { InvoiceRecord } from "@/lib/invoice-types";
 import { extractBodyAndAttachments } from "@/lib/receipt-parsers/gmail-payload";
-import { getBrowserLaunchConfig } from "@/lib/browser-runtime";
+import { createReceiptSummaryPdf } from "@/lib/receipt-pdf";
 
 const pdfStore = new Map<string, { buffer: Uint8Array; expires: number }>();
 
@@ -48,14 +48,7 @@ async function getGmailAttachmentBuffer(
   return Buffer.from(response.data.data, "base64url");
 }
 
-function escapeHtml(text: string) {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-async function getGmailMessageHtml(accessToken: string, messageId: string) {
+async function getGmailMessageText(accessToken: string, messageId: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   const gmail = google.gmail({ version: "v1", auth });
@@ -66,42 +59,18 @@ async function getGmailMessageHtml(accessToken: string, messageId: string) {
   });
 
   const { body } = extractBodyAndAttachments(response.data.payload);
-  if (body.html?.trim()) return body.html;
-  if (body.text?.trim()) {
-    return `<html><body style="font-family: Arial, sans-serif; padding: 24px;"><pre style="white-space: pre-wrap; font: inherit;">${escapeHtml(body.text)}</pre></body></html>`;
+  if (body.text?.trim()) return body.text;
+  if (body.html?.trim()) {
+    const htmlText = body.html
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return htmlText;
   }
 
   throw new Error("Email body missing");
-}
-
-async function renderHtmlToPdf(html: string) {
-  const { chromium, executablePath, args, headless } = await getBrowserLaunchConfig(true);
-  const browser = await chromium.launch({
-    executablePath,
-    args,
-    headless,
-  });
-
-  try {
-    const page = await browser.newPage({
-      viewport: { width: 1280, height: 1800 },
-    });
-    await page.setContent(html, { waitUntil: "networkidle" });
-    await page.emulateMedia({ media: "screen" });
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: {
-        top: "0.35in",
-        right: "0.35in",
-        bottom: "0.35in",
-        left: "0.35in",
-      },
-    });
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
 }
 
 function getSessionAccessToken(session: unknown): string {
@@ -197,10 +166,18 @@ export async function POST(request: NextRequest) {
             if (gmailAccessToken && invoice.messageId) {
               send({
                 type: "status",
-                message: `Rendering Uber receipt ${current} from Gmail content...`,
+                message: `Generating Uber receipt ${current} from Gmail content...`,
               });
-              const html = await getGmailMessageHtml(gmailAccessToken, invoice.messageId);
-              buffer = await renderHtmlToPdf(html);
+              const messageText = await getGmailMessageText(gmailAccessToken, invoice.messageId);
+              buffer = await createReceiptSummaryPdf({
+                title: "Uber receipt summary",
+                date: invoice.date,
+                amount: invoice.amount,
+                pickup: invoice.pickup,
+                drop: invoice.drop,
+                bodyText: messageText,
+                footerNote: "Generated from the Uber receipt email for combined reimbursement export.",
+              });
             }
 
             if (!buffer && invoice.tripId) {
@@ -322,8 +299,6 @@ export async function GET(request: NextRequest) {
       { status: 404 },
     );
   }
-
-  pdfStore.delete(token);
 
   const dateStr = new Date().toLocaleDateString("en-GB").replace(/\//g, "-");
   return new Response(Buffer.from(entry.buffer), {
