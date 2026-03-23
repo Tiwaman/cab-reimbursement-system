@@ -14,7 +14,7 @@ import {
   RiMergeCellsHorizontal,
 } from 'react-icons/ri';
 import { TbReceipt2 } from 'react-icons/tb';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import type { InvoiceRecord } from '@/lib/invoice-types';
 
 import './generate.css';
@@ -137,23 +137,43 @@ export default function GeneratePage() {
     }
   };
 
-  const downloadExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(invoices.map(inv => ({
-      'Trip Date': inv.date,
-      'Platform': inv.platform === 'rapido' ? 'Rapido' : 'Uber',
-      'Amount (INR)': inv.amount,
-      'Pickup Location': inv.pickup,
-      'Drop Location': inv.drop,
-      'Status': 'Verified via Gmail',
-    })));
+  const downloadExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Reimbursement');
 
-    worksheet['!cols'] = [
-      { wch: 15 }, { wch: 12 }, { wch: 14 }, { wch: 52 }, { wch: 52 }, { wch: 22 },
+    worksheet.columns = [
+      { header: 'Trip Date', key: 'date', width: 15 },
+      { header: 'Platform', key: 'platform', width: 12 },
+      { header: 'Amount (INR)', key: 'amount', width: 14 },
+      { header: 'Pickup Location', key: 'pickup', width: 52 },
+      { header: 'Drop Location', key: 'drop', width: 52 },
+      { header: 'Status', key: 'status', width: 22 },
     ];
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reimbursement');
-    XLSX.writeFile(workbook, `Cab_Reimbursement_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`);
+    invoices.forEach(inv => {
+      worksheet.addRow({
+        date: inv.date,
+        platform: inv.platform === 'rapido' ? 'Rapido' : 'Uber',
+        amount: inv.amount,
+        pickup: inv.pickup,
+        drop: inv.drop,
+        status: 'Verified via Gmail',
+      });
+    });
+
+    // Formatting
+    worksheet.getRow(1).font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `Cab_Reimbursement_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   // ── Combined PDF Generation ──────────────────────
