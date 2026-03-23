@@ -16,7 +16,11 @@ import { mergePdfs } from "@/lib/pdf-merge";
 import { authOptions } from "@/lib/auth";
 import { InvoiceRecord } from "@/lib/invoice-types";
 import { extractBodyAndAttachments } from "@/lib/receipt-parsers/gmail-payload";
-import { createReceiptSummaryPdf } from "@/lib/receipt-pdf";
+import {
+  launchRenderer,
+  renderHtmlToPdf,
+  closeRenderer,
+} from "@/lib/html-to-pdf";
 
 const pdfStore = new Map<string, { buffer: Uint8Array; expires: number }>();
 
@@ -48,7 +52,7 @@ async function getGmailAttachmentBuffer(
   return Buffer.from(response.data.data, "base64url");
 }
 
-async function getGmailMessageText(accessToken: string, messageId: string) {
+async function getGmailMessageHtml(accessToken: string, messageId: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   const gmail = google.gmail({ version: "v1", auth });
@@ -59,15 +63,9 @@ async function getGmailMessageText(accessToken: string, messageId: string) {
   });
 
   const { body } = extractBodyAndAttachments(response.data.payload);
-  if (body.text?.trim()) return body.text;
-  if (body.html?.trim()) {
-    const htmlText = body.html
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return htmlText;
+  if (body.html?.trim()) return body.html;
+  if (body.text?.trim()) {
+    return `<html><body><pre style="font-family:sans-serif;white-space:pre-wrap">${body.text}</pre></body></html>`;
   }
 
   throw new Error("Email body missing");
@@ -151,6 +149,7 @@ export async function POST(request: NextRequest) {
         let failCount = 0;
         let current = 0;
         let uberSessionReady = false;
+        let rendererReady = false;
 
         for (const invoice of validUberInvoices) {
           current += 1;
@@ -166,18 +165,27 @@ export async function POST(request: NextRequest) {
             if (gmailAccessToken && invoice.messageId) {
               send({
                 type: "status",
-                message: `Generating Uber receipt ${current} from Gmail content...`,
+                message: `Rendering Uber receipt ${current} from email...`,
               });
-              const messageText = await getGmailMessageText(gmailAccessToken, invoice.messageId);
-              buffer = await createReceiptSummaryPdf({
-                title: "Uber receipt summary",
-                date: invoice.date,
-                amount: invoice.amount,
-                pickup: invoice.pickup,
-                drop: invoice.drop,
-                bodyText: messageText,
-                footerNote: "Generated from the Uber receipt email for combined reimbursement export.",
-              });
+
+              try {
+                const html = await getGmailMessageHtml(
+                  gmailAccessToken,
+                  invoice.messageId,
+                );
+
+                if (!rendererReady) {
+                  await launchRenderer();
+                  rendererReady = true;
+                }
+
+                buffer = await renderHtmlToPdf(html);
+              } catch (renderErr) {
+                send({
+                  type: "warning",
+                  message: `HTML render failed for ${invoice.date}, trying Uber session fallback: ${renderErr instanceof Error ? renderErr.message : "unknown"}`,
+                });
+              }
             }
 
             if (!buffer && invoice.tripId) {
@@ -269,6 +277,7 @@ export async function POST(request: NextRequest) {
             err instanceof Error ? err.message : "An unexpected error occurred",
         });
       } finally {
+        await closeRenderer();
         await closeSession();
         controller.close();
       }
