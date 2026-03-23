@@ -335,6 +335,16 @@
   box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
 }
 
+/* Spinner */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 640px) {
   .generate-card {
     padding: 24px 20px;
