@@ -678,7 +678,7 @@ export default function LandingPage() {
           </div>
           <div className="l-footer-links">
             <Link href="/privacy">Privacy</Link>
-            <a href="#">Terms</a>
+            <Link href="/terms">Terms</Link>
             <a href="#">Contact</a>
           </div>
         </div>
