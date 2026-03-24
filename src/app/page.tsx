@@ -249,7 +249,7 @@ export default function LandingPage() {
         >
           <motion.h1 variants={fadeUp} custom={0}>
             Your cab receipts. <br />
-            <span className="l-gradient-text">One report. 0 effort.</span>
+            <span className="l-gradient-text">One report. Zero effort.</span>
           </motion.h1>
 
           <motion.p className="l-hero-sub" variants={fadeUp} custom={1}>
