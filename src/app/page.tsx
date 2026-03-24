@@ -205,7 +205,7 @@ export default function LandingPage() {
               <div className="l-logo-icon" style={{ overflow: 'hidden' }}>
                 <Image src="/logo.png" alt="Logo" width={20} height={20} className="object-cover" />
               </div>
-              CabReimburse
+              Cab Reimbursement System
             </div>
             {status !== "loading" ? (
               session ? (
@@ -673,7 +673,7 @@ export default function LandingPage() {
               <TbReceipt2 size={16} color="#fff" />
             </div>
             <span className="l-footer-copy" suppressHydrationWarning>
-              © {new Date().getFullYear()} CabReimburse. All rights reserved.
+              © {new Date().getFullYear()} Cab Reimbursement System. All rights reserved.
             </span>
           </div>
           <div className="l-footer-links">
