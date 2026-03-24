@@ -23,6 +23,7 @@ import {
   TbShieldCheck,
 } from "react-icons/tb";
 import { SiUber } from "react-icons/si";
+import Link from "next/link";
 
 /* ── Animation Helpers ──────────────────────────────────────── */
 const fadeUp: Variants = {
@@ -201,8 +202,8 @@ export default function LandingPage() {
         <div className="container">
           <div className="l-nav-inner">
             <div className="l-logo">
-              <div className="l-logo-icon">
-                <TbReceipt2 size={20} color="#fff" />
+              <div className="l-logo-icon" style={{ overflow: 'hidden' }}>
+                <Image src="/logo.png" alt="Logo" width={20} height={20} className="object-cover" />
               </div>
               CabReimburse
             </div>
@@ -676,7 +677,7 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="l-footer-links">
-            <a href="#">Privacy</a>
+            <Link href="/privacy">Privacy</Link>
             <a href="#">Terms</a>
             <a href="#">Contact</a>
           </div>

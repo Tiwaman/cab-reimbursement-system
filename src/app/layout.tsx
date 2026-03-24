@@ -5,6 +5,10 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
   title: "CabReimburse — Cab receipts, one report, zero effort",
   description: "Connect your Gmail. We find every cab receipt from Uber, Ola, and Rapido — then deliver a polished PDF + spreadsheet ready for reimbursement.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
