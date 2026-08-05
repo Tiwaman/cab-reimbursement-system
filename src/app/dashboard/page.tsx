@@ -107,7 +107,7 @@ export default function Dashboard() {
                   <TbReceipt2 size={18} color="#fff" />
                 </div>
                 <span className="mobile-hide" style={{ fontFamily: 'Libre Baskerville, serif', fontWeight: 700, fontSize: '1.1rem', color: 'var(--l-text, #FAFAFA)', letterSpacing: '-0.02em' }}>
-                  CabReimburse
+                  Cab Reimbursement System
                 </span>
               </div>
             </div>

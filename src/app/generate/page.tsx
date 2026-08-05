@@ -142,28 +142,105 @@ export default function GeneratePage() {
     const worksheet = workbook.addWorksheet('Reimbursement');
 
     worksheet.columns = [
-      { header: 'Trip Date', key: 'date', width: 15 },
-      { header: 'Platform', key: 'platform', width: 12 },
-      { header: 'Amount (INR)', key: 'amount', width: 14 },
-      { header: 'Pickup Location', key: 'pickup', width: 52 },
-      { header: 'Drop Location', key: 'drop', width: 52 },
-      { header: 'Status', key: 'status', width: 22 },
+      { key: 'a', width: 22 },
+      { key: 'b', width: 42 },
+      { key: 'c', width: 22 },
     ];
 
-    invoices.forEach(inv => {
-      worksheet.addRow({
-        date: inv.date,
-        platform: inv.platform === 'rapido' ? 'Rapido' : 'Uber',
-        amount: inv.amount,
-        pickup: inv.pickup,
-        drop: inv.drop,
-        status: 'Verified via Gmail',
-      });
+    const thin = { style: 'thin' as const };
+    const thick = { style: 'thick' as const };
+    const fullBorder = { top: thin, left: thin, bottom: thin, right: thin };
+
+    let row = 1;
+
+    // Title
+    worksheet.mergeCells(`A${row}:C${row}`);
+    const titleCell = worksheet.getCell(`A${row}`);
+    titleCell.value = 'Home Drop (Conveyance)';
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(row).height = 22;
+    row++;
+
+    // Pay to / Emp Code
+    worksheet.mergeCells(`A${row}:B${row}`);
+    const payToCell = worksheet.getCell(`A${row}`);
+    payToCell.value = 'Pay to : ';
+    payToCell.font = { bold: true };
+    payToCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+    const empCodeCell = worksheet.getCell(`C${row}`);
+    empCodeCell.value = 'Emp Code : ';
+    empCodeCell.font = { bold: true };
+    empCodeCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    row++;
+
+    // Table header
+    worksheet.getCell(`A${row}`).value = 'Trip Date';
+    worksheet.getCell(`B${row}`).value = 'Cab Shared by';
+    worksheet.getCell(`C${row}`).value = 'Amount (INR)';
+    ['A', 'B', 'C'].forEach((col) => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+    row++;
+
+    // Trip rows — "Cab Shared by" is left blank for manual fill-in
+    invoices.forEach((inv) => {
+      worksheet.getCell(`A${row}`).value = inv.date;
+      const amountCell = worksheet.getCell(`C${row}`);
+      amountCell.value = inv.amount;
+      amountCell.numFmt = '#,##0.00';
+      row++;
     });
 
-    // Formatting
-    worksheet.getRow(1).font = { bold: true };
+    // Pad with blank rows so there's room to add trips by hand
+    const MIN_TABLE_ROWS = 12;
+    const blankRowsNeeded = Math.max(0, MIN_TABLE_ROWS - invoices.length);
+    row += blankRowsNeeded;
 
+    // Net Pay
+    const total = invoices.reduce((sum, inv) => sum + inv.amount, 0);
+    worksheet.getCell(`B${row}`).value = 'Net Pay';
+    worksheet.getCell(`B${row}`).font = { bold: true };
+    const netPayCell = worksheet.getCell(`C${row}`);
+    netPayCell.value = total;
+    netPayCell.numFmt = '#,##0.00';
+    netPayCell.font = { bold: true };
+    row++;
+
+    row++; // spacer
+
+    // Approver's / Receiver's sign
+    worksheet.mergeCells(`B${row}:C${row}`);
+    worksheet.getCell(`A${row}`).value = "Approver's Sign";
+    worksheet.getCell(`A${row}`).alignment = { horizontal: 'left', vertical: 'middle' };
+    worksheet.getRow(row).height = 40;
+    row++;
+
+    worksheet.mergeCells(`B${row}:C${row}`);
+    worksheet.getCell(`A${row}`).value = "Receiver's sign";
+    worksheet.getCell(`A${row}`).alignment = { horizontal: 'left', vertical: 'middle' };
+    worksheet.getRow(row).height = 40;
+    row++;
+
+    const lastRow = row - 1;
+
+    // Grid borders over the whole slip, thick outline
+    for (let r = 1; r <= lastRow; r++) {
+      ['A', 'B', 'C'].forEach((col) => {
+        worksheet.getCell(`${col}${r}`).border = { ...fullBorder };
+      });
+    }
+    ['A', 'B', 'C'].forEach((col) => {
+      worksheet.getCell(`${col}1`).border = { ...worksheet.getCell(`${col}1`).border, top: thick };
+      worksheet.getCell(`${col}${lastRow}`).border = { ...worksheet.getCell(`${col}${lastRow}`).border, bottom: thick };
+    });
+    for (let r = 1; r <= lastRow; r++) {
+      worksheet.getCell(`A${r}`).border = { ...worksheet.getCell(`A${r}`).border, left: thick };
+      worksheet.getCell(`C${r}`).border = { ...worksheet.getCell(`C${r}`).border, right: thick };
+    }
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
@@ -333,7 +410,7 @@ export default function GeneratePage() {
                   <TbReceipt2 size={16} color="#fff" />
                 </div>
                 <span className="mobile-hide" style={{ fontFamily: 'Libre Baskerville, serif', fontWeight: 700, fontSize: '1rem', color: '#fff', letterSpacing: '-0.02em' }}>
-                  CabReimburse
+                  Cab Reimbursement System
                 </span>
               </div>
             </div>
