@@ -137,7 +137,7 @@ async function fetchUberInvoices(gmail: GmailApi, startDate: string | null, endD
 }
 
 async function fetchRapidoInvoices(gmail: GmailApi, startDate: string | null, endDate: string | null): Promise<(InvoiceRecord & { dateObj: Date; dedupeKeys: string[] })[]> {
-  const q = 'from:shoutout@rapido.bike subject:"Rapido Invoice"';
+  const q = 'from:rapido.bike';
   const response = await gmail.users.messages.list({ userId: 'me', q, maxResults: 100 });
   if (!response.data.messages) return [];
 

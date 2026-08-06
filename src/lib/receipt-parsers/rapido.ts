@@ -59,6 +59,26 @@ function truncateLocation(value?: string, fallback?: string) {
   return text.length > 45 ? `${text.slice(0, 42)}...` : text;
 }
 
+const ADDRESS_KEYWORDS = ['Road', 'Nagar', 'St', 'Ave', 'Sector', 'Phase', 'Building', 'Block', 'Mumbai', 'Maharashtra', 'India', 'Unnamed', 'Gaothan', 'MIDC', 'Apartment', 'Society', 'Chamber', 'Park', 'Colony'];
+const BOILERPLATE_KEYWORDS = ['booking history', 'customer name', 'ride id', 'driver name', 'vehicle number', 'mode of vehicle', 'time of ride', 'selected price', 'does not collect', 'reimbursement purposes', 'estimated price range'];
+const ZIP_CODE_REGEX = /\b\d{6}\b/;
+
+function findAddressCandidates(bodyHtml: string): string[] {
+  const $ = cheerio.load(bodyHtml);
+  return $('div, td, p, span')
+    .map((_, el) => cleanText($(el).text()))
+    .get()
+    .filter((text) => {
+      if (text.length <= 10) return false;
+      const lower = text.toLowerCase();
+      const isBoilerplate = BOILERPLATE_KEYWORDS.some((key) => lower.includes(key));
+      if (isBoilerplate) return false;
+      const hasZip = ZIP_CODE_REGEX.test(text);
+      const hasAddressKeyword = ADDRESS_KEYWORDS.some((key) => lower.includes(key.toLowerCase()));
+      return hasZip || hasAddressKeyword;
+    });
+}
+
 export function parseRapidoInvoice(input: RapidoParseInput): (InvoiceRecord & { dateObj: Date; dedupeKeys: string[] }) | null {
   const bodyHtml = input.html || '';
   const bodyText = input.text || '';
@@ -73,7 +93,7 @@ export function parseRapidoInvoice(input: RapidoParseInput): (InvoiceRecord & { 
 
   const journeyLabel = extractWithPatterns(combined, [
     /Time of Ride[\s\S]*?align-right[^>]*>\s*([^<\r\n]+)/i,
-    /Time of Ride[:\s]*([A-Za-z]{3}\s+\d{1,2}(?:st|nd|rd|th)?\s+\d{4},\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+    /Time of Ride[\s\S]*?([A-Za-z]{3}\s+\d{1,2}(?:st|nd|rd|th)?\s+\d{4},\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i,
   ]);
   const dateObj = parseJourneyDate(journeyLabel);
   if (!dateObj) return null;
@@ -91,13 +111,9 @@ export function parseRapidoInvoice(input: RapidoParseInput): (InvoiceRecord & { 
   ]);
 
   if ((!pickup || !drop) && bodyHtml) {
-    const $ = cheerio.load(bodyHtml);
-    const locations = $('div, td, p')
-      .map((_, el) => cleanText($(el).text()))
-      .get()
-      .filter((text) => text.length > 10);
-    pickup ||= locations.find((text) => /pickup/i.test(text)) || locations[0];
-    drop ||= locations.find((text) => /drop/i.test(text)) || locations[1];
+    const candidates = findAddressCandidates(bodyHtml);
+    pickup ||= candidates.find((text) => /pickup/i.test(text)) || candidates[0];
+    drop ||= candidates.find((text) => /drop/i.test(text)) || candidates[1];
   }
 
   const pdfAttachment = findPdfAttachment(input.attachments);
